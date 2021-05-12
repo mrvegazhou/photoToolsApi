@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import sys
+import sys, datetime
 sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
 from stock_app.model.day_trading import DayTrading
 from stock_app.model.stock import Stock
@@ -9,30 +9,44 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 import lightgbm as lgb
 import numpy as np
+import pandas as pd
 
 # 计算日涨跌幅
 def statistics_all_stock_day_trading(start_date, end_date):
     all_stocks = get_all_stocks()
+    frames = []
+    count = 1
     for item in all_stocks:
-        df = get_stock_special_indicators(item.code, start_date, end_date)
+        try:
+            df = get_stock_special_indicators(item.code, start_date, end_date)
+            df['code'] = item.code
+            df = get_KDJ(get_MACD(df), plus=True)
+            today_date = pd.to_datetime(datetime.datetime.strptime("2021-05-11", '%Y-%m-%d').date())
+            new_df = df[(df['MACD_buy']==1) & (df['KDJ_buy']==1) & (df.index == today_date)]
+            if not new_df.empty:
+                print(count, item.code, new_df, "......")
+                frames.append(new_df)
+            count = count + 1
+            # for index, row in df.iterrows():
+            #     kwargs = {
+            #         'trading_date': index,
+            #         'stock_code': item.code,
+            #         'close_price': row['close'],
+            #         'high_price': row['high'],
+            #         'low_price': row['low'],
+            #         'open_price': row['open'],
+            #         'volume': row['volume'],
+            #         'outstanding_share': row['outstanding_share'],
+            #         'turnover': row['turnover'],
+            #         'chg_pct': row['chg_pct']
+            #     }
+            #     DayTrading.add_trading_info(item.code, **kwargs)
+        except Exception:
+            print("异常:", Exception)
+    result = pd.concat(frames)
+    print(result['code'])
+    print(result)
 
-        print(df)
-        # return
-        # for index, row in df.iterrows():
-        #     kwargs = {
-        #         'trading_date': index,
-        #         'stock_code': item.code,
-        #         'close_price': row['close'],
-        #         'high_price': row['high'],
-        #         'low_price': row['low'],
-        #         'open_price': row['open'],
-        #         'volume': row['volume'],
-        #         'outstanding_share': row['outstanding_share'],
-        #         'turnover': row['turnover'],
-        #         'chg_pct': row['chg_pct']
-        #     }
-        #     # print(kwargs)
-        #     DayTrading.add_trading_info(item.code, **kwargs)
 
 
 # 获取股票各种指标
@@ -76,7 +90,7 @@ def get_MACD(df):
     df['M5_cross_M10'] = 0
     ma_position = df['MA5'] > df['MA10']
     df.loc[ma_position[(ma_position == True) & (ma_position.shift() == False)].index, 'M5_cross_M10'] = 1
-
+    return df
 
 # kdj金叉
 def get_KDJ(df, plus=False):
@@ -96,7 +110,7 @@ def get_KDJ(df, plus=False):
         kdj_position_plus = (df['KDJ_J'].shift(2) < 20) & (df['KDJ_J'].shift(1) < 20) & ((df['KDJ_J']-df['KDJ_J'].shift(1)) >= 40)
     df.loc[kdj_position[(kdj_position == True) & (kdj_position_plus == True) & (kdj_position.shift() == False)].index, 'KDJ_buy'] = 1
     df.loc[kdj_position[(kdj_position == False) & (kdj_position.shift() == True)].index, 'KDJ_buy'] = -1
-
+    return df
 
 # A股个股指标
 def sync_stock_base_indicator(code, date):
@@ -178,7 +192,8 @@ def get_all_stocks():
 
 
 if __name__ == "__main__":
-    # df = get_stock_special_indicators("sz002241", "20100101", "20210510")
+    statistics_all_stock_day_trading("20100101", "20210511")
+
     # df['pre_close'] = df.shift(-1)['close']
     # df['chg_pct'] = df.apply(lambda x: (x.close-x.pre_close)/x.pre_close, axis=1)
     # print(df)
@@ -196,5 +211,7 @@ if __name__ == "__main__":
     # print(df)
 
     # 测试指标
-    df = sync_stock_base_indicator("sz300236", "2021-05-11")
-    print(df[df['trade_date']=="2021-05-11"])
+    # df = sync_stock_base_indicator("sz300236", "2021-05-11")
+    # print(df[df['trade_date']=="2021-05-11"])
+
+
