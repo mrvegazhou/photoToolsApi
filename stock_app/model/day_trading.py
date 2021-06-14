@@ -71,18 +71,76 @@ class DayTrading:
             db.column('stock_code') == code,
             db.column('trading_date') >= start_date,
             db.column('trading_date') <= end_date
-        )).order_by(db.desc('trading_date'))
+        )).order_by(db.text("trading_date desc"))
         return query.all()
+
+    @staticmethod
+    def get_stock_trading_list_by_SQL(code, start_date, end_date, cols=None):
+        obj = DayTrading.model(code)
+        name = obj.__tablename__
+        schema = obj.__table_args__
+        schema = schema['schema']
+        tbl_name = '{schema}.{table}'.format(schema=schema, table=name)
+        if cols:
+            cols = ['{}.{}'.format(tbl_name, col) for col in cols]
+            cols = ','.join(cols)
+        else:
+            cols = '*'
+
+        result = db.session.connection().execute(db.text(
+            'select {cols} from {tbl_name} where stock_code = :code and  trading_date>=:start_date and trading_date<=:end_date order by trading_date desc'.format(cols=cols, tbl_name=tbl_name)),
+                                                 {'code': code, 'start_date': start_date, 'end_date': end_date})
+        return result.fetchall()
+
+
+    @staticmethod
+    def get_stock_trading_info_by_SQL(code, date, cols=None):
+        obj = DayTrading.model(code)
+        name = obj.__tablename__
+        schema = obj.__table_args__
+        schema = schema['schema']
+        tbl_name = '{schema}.{table}'.format(schema=schema, table=name)
+        if cols:
+            cols = ['{}.{}'.format(tbl_name, col) for col in cols]
+            cols = ','.join(cols)
+        else:
+            cols = '*'
+        result = db.session.connection().execute(db.text(
+            'select {cols} from {tbl_name} where stock_code = :code and  trading_date =: trading_date order by trading_date desc'.format(
+                cols=cols, tbl_name=tbl_name)),
+            {'code': code, 'trading_date': date})
+        return result.fetchone()
+
+
+    @staticmethod
+    def get_stock_trading_info_by_SQL(code, start_date, end_date, cols=None):
+        obj = DayTrading.model(code)
+        name = obj.__tablename__
+        schema = obj.__table_args__
+        schema = schema['schema']
+        tbl_name = '{schema}.{table}'.format(schema=schema, table=name)
+        if cols:
+            cols = ['{}.{}'.format(tbl_name, col) for col in cols]
+            cols = ','.join(cols)
+        else:
+            cols = '*'
+
+        result = db.session.connection().execute(db.text(
+            'select {cols} from {tbl_name} where stock_code = :code and  trading_date>=:start_date and trading_date<=:end_date order by trading_date desc'.format(
+                cols=cols, tbl_name=tbl_name)),
+            {'code': code, 'start_date': start_date, 'end_date': end_date})
+        return result.fetchall()
+
 
     @staticmethod
     def get_stock_day_trading_by_date(code, date):
         obj = DayTrading.model(code)
-        return obj.query.filter(obj.stock_code == code, obj.trading_date == date).first()
+        return obj.query.filter(db.and_(obj.stock_code == code, obj.trading_date == date)).first()
 
     @staticmethod
     def get_stock_all_day_trading(code):
         obj = DayTrading.model(code)
-        return obj.query.order_by(db.desc('trading_date')).all()
+        return obj.query.filter_by(stock_code = code).order_by(db.desc('trading_date')).all()
 
     @staticmethod
     def create_tables():
@@ -113,6 +171,8 @@ class DayTrading:
                   MA5 numeric,
                   MA10 numeric,
                   MA20 numeric,
+                  MA43 numeric,
+                  MA60 numeric,
                   M5_cross_M10 numeric,
                   
                   PE numeric,
@@ -123,6 +183,7 @@ class DayTrading:
                   DV_ratio numeric,
                   DV_TTM numeric,
                   total_mv numeric,
+                  
                 ) with (oids = false);
                 COMMENT on table "stock"."day_trading_{}" is '股票日交易行情';
                 COMMENT ON COLUMN stock.day_trading_{}.volume IS '成交量(股)';
@@ -149,7 +210,6 @@ class DayTrading:
             '''.format(i)
             db.session.execute(sql)
             db.session.commit()
-
 
     def get_table(self, code):
         return self.get_hash_table_id(code, 10)

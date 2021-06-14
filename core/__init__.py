@@ -3,9 +3,10 @@ import subprocess
 from flask_cors import CORS  # 添加CORS组件 允许跨域访问
 from flask import Flask, request, make_response, send_from_directory, current_app
 from .config.sys_config import config
+
 from flask_sqlalchemy import SQLAlchemy
+
 from flask_apscheduler import APScheduler
-import akshare as ak
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from .log.logger import Logger
@@ -32,7 +33,6 @@ limiter = Limiter(
 )
 # 数据库
 db = SQLAlchemy(app)
-
 # 日志
 logger = Logger()
 logger.init_app(app)

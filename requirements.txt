@@ -9,3 +9,4 @@ chinesecalendar==1.5.0
 Ta-Lib==0.4.19
 scikit-learn==0.24.1
 lightgbm==3.1.1
+baostock==0.8.8
