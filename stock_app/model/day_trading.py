@@ -92,7 +92,6 @@ class DayTrading:
                                                  {'code': code, 'start_date': start_date, 'end_date': end_date})
         return result.fetchall()
 
-
     @staticmethod
     def get_stock_trading_info_by_SQL(code, date, cols=None):
         obj = DayTrading.model(code)
@@ -110,7 +109,6 @@ class DayTrading:
                 cols=cols, tbl_name=tbl_name)),
             {'code': code, 'trading_date': date})
         return result.fetchone()
-
 
     @staticmethod
     def get_stock_trading_info_by_SQL(code, start_date, end_date, cols=None):

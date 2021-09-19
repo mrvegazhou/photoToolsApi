@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
 
-from stock_app.__init__ import app, send, reqparse, ak, limiter
-from stock_app.service import stock
+from stock_app.__init__ import app, send, reqparse, ak, limiter, finance
+# from stock_app.service import stock
 
 parser = reqparse.RequestParser()
 
-@app.route('/check_stock', methods=['GET'])
+
+@finance.route('/check_stock', methods=['GET'])
 def check_stock():
     parser.add_argument('rate', type=int, help='Rate cannot be converted')
     parser.add_argument('name')
     args = parser.parse_args(http_error_code=50003)
     return send(10000, data="sss")
 
-@app.route('/stock/<string:code>/<string:start_date>/<string:ending_date>', methods=['GET'])
+
+@finance.route('/stock/<string:code>/<string:start_date>/<string:ending_date>', methods=['GET'])
 @limiter.limit("1/second", override_defaults=False)
 def get_stock_info(code, start_date, ending_date):
     result = {}
@@ -29,7 +31,8 @@ def get_stock_info(code, start_date, ending_date):
 
     return send(10000, data='')
 
-@app.route('/update_stock', methods=['GET'])
+
+@finance.route('/update_stock', methods=['GET'])
 def update_stock():
-    stock.addAllStockCodes()
+    # stock.addAllStockCodes()
     return send(10000, data='')

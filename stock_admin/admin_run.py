@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 from __init__ import app, WEB_IP, WEB_PORT
-from controller.stock import finance
+from stock_admin.controller import admin
 
 if __name__ == "__main__":
 
-    app.register_blueprint(finance, url_prefix='/finance')
+    app.register_blueprint(admin)
 
     if WEB_IP == 'localhost':
         # 本地调试

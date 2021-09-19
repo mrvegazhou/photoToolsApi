@@ -22,7 +22,7 @@ def generate_token(key):
     try:
         ts_str = str(time.time() + int(config["dev"].TOKEN_EXPIRE))
         ts_byte = ts_str.encode("utf-8")
-        sha1_tshexstr  = hmac.new(key.encode("utf-8"),ts_byte,'sha1').hexdigest()
+        sha1_tshexstr  = hmac.new(key.encode("utf-8"), ts_byte, 'sha1').hexdigest()
         token = ts_str+':'+sha1_tshexstr
         b64_token = base64.urlsafe_b64encode(token.encode("utf-8"))
         return b64_token.decode("utf-8")
@@ -66,7 +66,7 @@ def request2json(request):
 
 #Oauth2认证装饰器
 def oauth2_check(func):
-    def inner(*args,**kwargs):
+    def inner(*args, **kwargs):
         try:
             if request.method=='GET':
                 rjson = request.args.to_dict()

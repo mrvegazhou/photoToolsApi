@@ -10,7 +10,12 @@ def abort(http_status_code, **kwargs):
     """
     # noinspection PyUnresolvedReferences
     try:
-        original_flask_abort(send(http_status_code, data=kwargs.get('message')))
+        hint = kwargs.get('message')
+        if isinstance(hint, dict):
+            msg = ','.join(hint.values())
+            original_flask_abort(send(http_status_code, data=hint, msg=msg))
+        else:
+            original_flask_abort(send(http_status_code, data=hint))
     except HTTPException as e:
         if len(kwargs):
             e.data = kwargs

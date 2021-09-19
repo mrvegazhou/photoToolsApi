@@ -15,10 +15,13 @@ import hashlib
 import uuid
 import time
 import traceback
-from datetime import date, datetime
+import random
+import math
+from datetime import date, datetime, time as d_time
 from dateutil.relativedelta import relativedelta
 from hashlib import sha512
 from random import choice
+from sqlalchemy.ext.declarative import DeclarativeMeta
 
 
 from flask import request
@@ -116,9 +119,11 @@ def is_datetime(var):
 def is_password(var):
     if var is None:
         return False
-    regexp = r"^[\w.-~@#$%^&*]{6,16}$"
+    regexp = r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*?[^A-Za-z0-9])(?=.*[@$!%*#?&])[A-Za-z\d@$!#%*?&]{6,18}$'
     return re.search(regexp, str(var))
 
+def thousands_separator(num):
+    return num.replace(r'/\B(?=(?:\d{3})+(?!\d))/g', ",")
 
 def is_sms_code(var):
     if var is None:
@@ -286,13 +291,80 @@ def db_to_dict(inst, cls):
     return d
 
 
+# 生成随机字符串
+def gen_random_str(num):
+    return ''.join(str(i) for i in random.sample('zyxwvutsrqponmlkjihgfedcba1234567890', num))
+
+
 class ComplexEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, datetime):
             return obj.strftime('%Y-%m-%d %H:%M:%S')
         elif isinstance(obj, date):
             return obj.strftime('%Y-%m-%d')
+        elif isinstance(obj, d_time):
+            return obj.strftime('%H:%M:%S')
+        elif isinstance(obj, bytes):
+            return str(obj, encoding='utf-8')
         elif isinstance(obj, decimal.Decimal):
             return float(obj)
+        elif isinstance(obj.__class__, DeclarativeMeta):
+            # an SQLAlchemy class
+            try:
+                return obj.get_keys()
+            except TypeError:
+                return None
         else:
             return json.JSONEncoder.default(self, obj)
+
+
+def pagination(current_page, page_size, total):
+    '''
+    :param current_page: 当前页码
+    :param page_size: 页大小
+    :param total: 查询总数
+    :return: start起始位置 end终止位置
+    '''
+    try:
+        current_page = int(current_page)
+    except Exception as e:
+        current_page = 1
+
+    if not current_page:
+        current_page = 1
+    if not page_size:
+        page_size = total
+
+    current_page = int(current_page)
+    page_size = int(page_size)
+    total = int(total)
+
+    if total == 0:
+        return 0, 0
+
+    max_page_num = math.ceil(total / page_size)
+
+    if current_page >= max_page_num:
+        current_page = max_page_num
+
+    start = (current_page - 1) * page_size
+    end = page_size * current_page
+
+    if current_page == max_page_num:
+        end = total
+
+    return start, end
+
+
+# 判断是否为数字
+def is_num(value):
+    try:
+        x = int(value)
+    except TypeError:
+        return False
+    except ValueError:
+        return False
+    except Exception:
+        return False
+    else:
+        return True
