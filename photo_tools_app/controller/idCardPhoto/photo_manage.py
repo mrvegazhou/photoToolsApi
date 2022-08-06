@@ -22,7 +22,7 @@ api = Redprint(name='photo')
 @jwt_required
 def faceImgMatting():
     parser = reqparse.RequestParser()
-    parser.add_argument('imgFile', required=True, type=FileStorage, location='files', help="imgFile is wrong.")
+    parser.add_argument('imgFile', required=True, type=FileStorage, location='files', help="图片错误")
     entry = parser.parse_args(http_error_code=50003)
     img_file = entry.get('imgFile')
     ios = img_file.stream.read()
