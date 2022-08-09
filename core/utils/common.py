@@ -4,6 +4,7 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
+from subprocess import call
 import os
 import sys
 import json
@@ -428,3 +429,19 @@ def secure_filename(filename: str) -> str:
         filename = f"_{filename}"
 
     return filename
+
+# 字节转文件大小单位
+def convertFileSize(size_bytes):
+   if size_bytes == 0:
+       return "0B"
+   size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+   i = int(math.floor(math.log(size_bytes, 1024)))
+   p = math.pow(1024, i)
+   s = round(size_bytes / p, 2)
+   return "%s %s" % (s, size_name[i])
+
+def run_cmd(command):
+    try:
+        return call(command, shell=True)
+    except KeyboardInterrupt:
+            raise Exception("Process interrupted")

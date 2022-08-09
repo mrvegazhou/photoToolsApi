@@ -390,7 +390,6 @@ class Predictor:
 
 
 def main(args):
-    print(args.image_path, '0-0-0-')
     imgs_list, imgs_dir = get_image_list(args.image_path)
     if args.trimap_path is None:
         trimaps_list = None

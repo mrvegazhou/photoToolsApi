@@ -20,12 +20,15 @@ class StaticPages(object):
         cur_sep = os.path.sep
         upload_dir = app.config['UPLOAD_FOLDER']
         name, ext = fileName.rsplit('.', 1)
-        if "_rgba" in name:
+        if "_rgba" in name: # 抠图
             name = fileName.rsplit('_rgba', 1)[0]
             fileName = '{}{}{}_rgba.png'.format('matting', cur_sep, name)
-        elif "_c" in name:
+        elif "_c" in name: # 寸照合成
             name = fileName.rsplit('_c', 1)[0]
             fileName = '{}{}{}_c.png'.format('compose', cur_sep, name)
+        elif "_fixed" in name: # 图片修复
+            name = fileName.rsplit('_fixed', 1)[0]
+            fileName = '{}{}{}_fixed.png'.format('restored', cur_sep, name)
         dir1, dir2 = getUploadDirs(name)
         imgPath = '{}{}{}{}{}{}{}'.format(upload_dir, cur_sep, dir1, cur_sep, dir2, cur_sep, fileName)
         return imgPath, name, ext

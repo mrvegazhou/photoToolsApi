@@ -30,12 +30,14 @@ def after_request(resp):
     return resp
 app.after_request(after_request)
 
+#限制文件上传大小
+# app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 # 正则匹配路由
 class staticFileConverter(BaseConverter):
     def __init__(self, url_map):
         super().__init__(url_map)
-        self.regex = r'[0-9A-Za-z]{1,32}(_rgba|_c)?\.(png|jpe?g|gif|svg)'
+        self.regex = r'[0-9A-Za-z]{1,32}(_rgba|_c|_fixed)?\.(png|jpe?g|gif|svg)'
 app.url_map.converters["staticFile"] = staticFileConverter
 
 if __name__ == "__main__":
@@ -44,7 +46,7 @@ if __name__ == "__main__":
 
     if WEB_IP == 'localhost':
         # 本地调试
-        app.run(host='0.0.0.0', port=WEB_PORT, threaded=True, debug=True)
+        app.run(host='0.0.0.0', port=WEB_PORT, threaded=True, debug=False)
         # app.run()
         # ssl_context = (
         #    './server.crt',

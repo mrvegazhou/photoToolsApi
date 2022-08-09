@@ -14,6 +14,7 @@ from photo_tools_app.service.face_detect import FaceDetect
 from photo_tools_app.service.face_division import FaceDivision
 from photo_tools_app.service.image_compose import ImageCompose
 from photo_tools_app.service.static_pages import StaticPages
+from photo_tools_app.service.image_upload import UploadImg
 
 api = Redprint(name='photo')
 
@@ -32,13 +33,10 @@ def faceImgMatting():
     if len(dets) == 0:
         return send(80009, data=CODE[80009])
 
-    upload_dir = app.config['UPLOAD_FOLDER']
-    new_file_name = uuid.uuid4().hex
-    img_dir = getUploadDirs(new_file_name)
+    # 上传文件
+    new_file_name, file_dir = UploadImg.createUploadPathAndFileName()
     cur_sep = os.path.sep
-    file_dir = '{}{}{}{}{}'.format(upload_dir, cur_sep, img_dir[0], cur_sep, img_dir[1])
-    if not os.path.exists(file_dir):
-        os.makedirs(file_dir)
+
     if img_file and allowedFile(img_file.filename):
 
         fname = utils['common'].secure_filename(img_file.filename)

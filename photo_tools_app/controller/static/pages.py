@@ -12,7 +12,6 @@ api = Redprint(name='page')
 def imgPage(fileName):
     mdict = StaticPages.getImgTypes()
     imgPath, name, ext = StaticPages.getStaticPageUrl(fileName)
-    print(imgPath, '---imgPath--')
     if not os.path.exists(imgPath):
         return send(80008, data=CODE[80008])
     with open(imgPath, 'rb') as f:

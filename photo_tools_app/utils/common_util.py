@@ -56,7 +56,7 @@ def getFileContent(filePath):
 
 # 用于判断文件后缀
 def allowedFile(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1] in app.config['ALLOWED_EXTENSIONS']
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 
 if __name__ == "__main__":

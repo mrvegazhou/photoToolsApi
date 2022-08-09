@@ -1,4 +1,6 @@
 # coding: utf-8
+from sqlalchemy.pool import QueuePool
+
 class Config:
     '''
     database_setting
@@ -13,19 +15,18 @@ class Config:
     DATABASE = "stock"
     DB_URI = "{}+{}://{}:{}@{}:{}/{}".format(DIALCT, DRIVER, USERNAME, PASSWORD, HOST, PORT, DATABASE)
     SQLALCHEMY_DATABASE_URI = DB_URI
-    # 连接池个数
-    SQLALCHEMY_POOL_SIZE = 5
-    # 超时时间，秒
-    SQLALCHEMY_POOL_TIMEOUT = 30
-    # 空连接回收时间，秒
-    SQLALCHEMY_POOL_RECYCLE = 3600
-    SQLALCHEMY_MAX_OVERFLOW = 5
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'poolclass': QueuePool,
+        'max_overflow': 5,   # 超过连接池大小外最多可创建的连接
+        'pool_size': 20,  # 连接池大小
+        'pool_timeout': 5,  # 池满后，线程的最多等待连接的时间，否则报错
+        'pool_recycle': 1200,  # 多久之后对线程池中的线程进行一次连接的回收（重置）—— -1 永不回收
+        'pool_pre_ping': True,
+    }
+    # Flask - SQLAlchemy有自己的事件通知系统，该系统在SQLAlchemy之上分层。为此，它跟踪对SQLAlchemy会话的修改。
+    # 这会占用额外的资源，因此该选项SQLALCHEMY_TRACK_MODIFICATIONS允许你禁用修改跟踪系统。
+    # 当前，该选项默认为True，但将来该默认值将更改为False，从而禁用事件系统。
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    '''
-    Flask-SQLAlchemy有自己的事件通知系统，该系统在SQLAlchemy之上分层。为此，它跟踪对SQLAlchemy会话的修改。
-    这会占用额外的资源，因此该选项SQLALCHEMY_TRACK_MODIFICATIONS允许你禁用修改跟踪系统。
-    当前，该选项默认为True，但将来该默认值将更改为False，从而禁用事件系统。
-    '''
 
     '''
     WEB SETTINT
