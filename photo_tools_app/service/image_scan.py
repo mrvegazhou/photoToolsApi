@@ -98,7 +98,6 @@ class ScanImage:
             warped = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)
             # 阈值分割
             T = threshold_local(warped, 11, offset=10, method='gaussian')
-            dst = (warped > T).astype('uint8') * 255
             # scan_img = ScanImage.get_scan_img(warped)
 
         dst = ScanImage.cv2_enhance_contrast(dst)
