@@ -29,6 +29,9 @@ class StaticPages(object):
         elif "_fixed" in name: # 图片修复
             name = fileName.rsplit('_fixed', 1)[0]
             fileName = '{}{}{}_fixed.png'.format('restored', cur_sep, name)
+        elif "_old" in name: # 图片修复
+            name = fileName.rsplit('_old', 1)[0]
+            fileName = '{}{}{}_old.{}'.format('restored', cur_sep, name, ext)
         dir1, dir2 = getUploadDirs(name)
         imgPath = '{}{}{}{}{}{}{}'.format(upload_dir, cur_sep, dir1, cur_sep, dir2, cur_sep, fileName)
         return imgPath, name, ext

@@ -32,12 +32,12 @@ class FixImg:
         final_path = "{}{}final_output{}".format(outputs, sep, sep)
         if os.path.isfile(final_path+imgname+".png"):
             f_src = os.path.join(final_path, imgname+".png")
-            # os.rename(os.path.join(final_path, imgname+".png"), f_src)
             dst_path = "{}{}restored".format(save_path, sep)
             if not os.path.exists(dst_path):
                 os.mkdir(dst_path)
             f_dst = os.path.join(dst_path, imgname+"_fixed.png")
-            shutil.copyfile(os.path.join(inputs, imgname+"."+ext), os.path.join(dst_path, imgname+"."+ext))
+            # 原图移动到restored文件夹内
+            shutil.copyfile(os.path.join(inputs, imgname+"."+ext), os.path.join(dst_path, imgname+"_old."+ext))
             shutil.move(f_src, f_dst)
             shutil.rmtree(os.path.join(save_path, imgname))
             return True
@@ -48,7 +48,19 @@ class FixImg:
         pass
 
 if __name__ == "__main__":
+    import cv2, numpy as np
 
-    # run_cmd("python run.py --input_folder inputs  --output_folder results  --GPU -1 --with_scratch --HR")
-    # print(os.listdir('/Users/vega/workspace/codes/py_space/working/photo-tools-api/uploads/inputs'))
-    FixImg.restoreOldPhotoByMicrosoft('oldsss', '/Users/vega/workspace/codes/py_space/working/photo-tools-api/uploads/inputs/oldsss.jpeg', '/Users/vega/workspace/codes/py_space/working/photo-tools-api/uploads/outputs')
+    image = cv2.imread('/Users/vega/workspace/codes/py_space/working/photo-tools-api/photo_tools_app/service/shuiyin.png')
+    hue_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    low_range = np.array([140, 100, 90])
+    high_range = np.array([185, 255, 255])
+    mask = cv2.inRange(hue_image, low_range, high_range)
+
+    kernel = np.ones((3, 3), np.uint8)
+    dilate_img = cv2.dilate(mask, kernel, iterations=1)
+    res = cv2.inpaint(image, dilate_img, 5, flags=cv2.INPAINT_TELEA)
+
+    cv2.imshow('mask_img', mask)
+    cv2.imshow('res', res)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
