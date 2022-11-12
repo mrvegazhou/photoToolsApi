@@ -2,8 +2,8 @@
 import sys
 sys.path.append("/Users/vega/workspace/codes/py_space/working/photo-tools-api")
 from photo_tools_admin.model.base import Base
-from photo_tools_admin.__init__ import db, utils
-
+from photo_tools_admin.__init__ import db, utils, func
+from sqlalchemy import select, and_
 
 class AdminRoleMenuPower(Base):
 
@@ -56,6 +56,14 @@ class AdminRoleMenuPower(Base):
         db.session.commit()
         return result.rowcount
 
+    # 通过menu_id和role_ids删除权限
+    @staticmethod
+    def del_power_by_menuId_roleIds(menu_id, role_ids):
+        deleted_objects = AdminRoleMenuPower.__table__.delete().where(and_(AdminRoleMenuPower.menu_id == menu_id, AdminRoleMenuPower.role_id.in_(role_ids)))
+        result = db.session.execute(deleted_objects)
+        db.session.commit()
+        return result.rowcount
+
     @staticmethod
     def batch_add_role_menu_powers(params):
         '''
@@ -73,16 +81,16 @@ class AdminRoleMenuPower(Base):
             keys = item.keys()
             if ('role_id' not in keys) or ('menu_id' not in keys) or ('power_id' not in keys):
                 continue
-            if (not utils['common'].is_num(item.role_id)) or (not utils['common'].is_num(item.menu_id)) or (not utils['common'].is_num(item.power_id)):
+            if (not utils['common'].is_num(item['role_id'])) or (not utils['common'].is_num(item['menu_id'])) or (not utils['common'].is_num(item['power_id'])):
                 continue
             i = i + 1
             role_key = 'role_id' + str(i)
             menu_key = 'menu_id' + str(i)
             power_key = 'power_id' + str(i)
-            sql_insert.append("(:{role_id}, :{menu_id}, :{power_id)".format(role_id=role_key, menu_id=menu_key, power_id=power_key))
-            sql_insert_dict[role_key] = item.role_id
-            sql_insert_dict[menu_key] = item.menu_id
-            sql_insert_dict[power_key] = item.power_id
+            sql_insert.append("(:{role_id}, :{menu_id}, :{power_id})".format(role_id=role_key, menu_id=menu_key, power_id=power_key))
+            sql_insert_dict[role_key] = item['role_id']
+            sql_insert_dict[menu_key] = item['menu_id']
+            sql_insert_dict[power_key] = item['power_id']
 
         sql_insert = ','.join(sql_insert)
         result = db.session.connection().execute(db.text(
@@ -154,6 +162,24 @@ class AdminRoleMenuPower(Base):
             return AdminRoleMenuPower.query.filter(AdminRoleMenuPower.menu_id.in_(menu_ids)).all()
         else:
             return AdminRoleMenuPower.query.filter(AdminRoleMenuPower.menu_id==menu_ids).all()
+
+    @staticmethod
+    def get_roles_by_menuId_groupBy_roleId(menu_id):
+        sql = select([AdminRoleMenuPower.role_id]).where(AdminRoleMenuPower.menu_id==menu_id).group_by(AdminRoleMenuPower.role_id)
+        datas = db.session.connection().execute(sql).fetchall()
+        if datas:
+            return [i[0] for i in datas]
+        else:
+            return []
+
+    @staticmethod
+    def get_roless_by_menuId_groupBy_roleId_menuId(menu_id):
+        sql = select([AdminRoleMenuPower.role_id, AdminRoleMenuPower.menu_id, func.count(AdminRoleMenuPower.power_id)])\
+            .where(and_(AdminRoleMenuPower.menu_id == menu_id, AdminRoleMenuPower.power_id!=0))\
+            .group_by(AdminRoleMenuPower.role_id, AdminRoleMenuPower.menu_id)
+        return db.session.connection().execute(sql).fetchall()
+
+
 
 if __name__ == "__main__":
     pass

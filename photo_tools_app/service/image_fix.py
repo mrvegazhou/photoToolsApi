@@ -29,7 +29,7 @@ class FixImg:
         common.run_cmd(str_cmd)
         os.chdir(retval)
         sep = os.path.sep
-        final_path = "{}{}final_output{}".format(outputs, sep, sep)
+        final_path = "{}final_output{}".format(outputs, sep)
         if os.path.isfile(final_path+imgname+".png"):
             f_src = os.path.join(final_path, imgname+".png")
             dst_path = "{}{}restored".format(save_path, sep)
@@ -43,24 +43,10 @@ class FixImg:
             return True
         return False
 
-    @staticmethod
-    def inpaintingImg():
-        pass
 
 if __name__ == "__main__":
     import cv2, numpy as np
 
-    image = cv2.imread('/Users/vega/workspace/codes/py_space/working/photo-tools-api/photo_tools_app/service/shuiyin.png')
-    hue_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    low_range = np.array([140, 100, 90])
-    high_range = np.array([185, 255, 255])
-    mask = cv2.inRange(hue_image, low_range, high_range)
-
-    kernel = np.ones((3, 3), np.uint8)
-    dilate_img = cv2.dilate(mask, kernel, iterations=1)
-    res = cv2.inpaint(image, dilate_img, 5, flags=cv2.INPAINT_TELEA)
-
-    cv2.imshow('mask_img', mask)
-    cv2.imshow('res', res)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    image = '/Users/vega/workspace/codes/py_space/working/photo-tools-api/photo_tools_app/service/shuiyin.png'
+    image2 = '/Users/vega/workspace/codes/py_space/working/photo-tools-api/photo_tools_app/service/rrrr.png'
+    FixImg.addWatermarkByLogo(image, image2)

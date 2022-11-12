@@ -42,6 +42,10 @@ def faceImgMatting():
         fname = utils['common'].secure_filename(img_file.filename)
         ext = fname.rsplit('.', 1)[1]
         new_filename = new_file_name + '.' + ext
+
+        if not os.path.exists(file_dir + cur_sep):
+            os.makedirs(file_dir + cur_sep)
+
         try:
             # img_file.save(file_dir + cur_sep + new_filename)
             with open(file_dir + cur_sep + new_filename, 'wb') as f:

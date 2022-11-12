@@ -95,9 +95,8 @@ class AdminMenuPower(Base):
         menu_ids = ','.join('%s' % id for id in menu_ids)
         tbl_name = '{schema}.{table}'.format(schema=schema, table=name)
         return db.session.connection().execute(db.text(
-            "SELECT  menu_id, array_to_string(ARRAY(SELECT unnest(array_agg(uuid))),',') AS uuids FROM stock.admin_menu_power where menu_id in ({menu_ids}) GROUP BY menu_id"
-                .format(tbl_name=tbl_name, menu_ids=menu_ids))).fetchall()
-
+            "SELECT  menu_id, array_to_string(ARRAY(SELECT unnest(array_agg(uuid))),',') AS uuids FROM {schema}.admin_menu_power where menu_id in ({menu_ids}) GROUP BY menu_id"
+                .format(schema=schema, tbl_name=tbl_name, menu_ids=menu_ids))).fetchall()
 
 
 

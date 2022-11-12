@@ -88,3 +88,4 @@ def del_menu_power():
     args = parser.parse_args(http_error_code=50009)
     res = AdminMenuPowerService.del_menu_power(args['uuid'])
     return send(200, data=res)
+

@@ -92,6 +92,18 @@ def update_admin_user():
     parser.add_argument('status', help='用户状态错误', type=int)
     parser.add_argument('username', help='用户名错误', type=str)
     kwargs = parser.parse_args(http_error_code=50003)
-    print(kwargs)
     res = AdminUserService.update_user(kwargs)
     return send(200, data=res)
+
+@admin.route('/updateAdminPassword', methods=['POST'])
+def update_admin_password():
+    parser = reqparse.RequestParser()
+    parser.add_argument('uuid', help='用户标识错误', type=int)
+    parser.add_argument('oldPassword', help='旧密码缺失', type=str)
+    parser.add_argument('newPassword', help='新密码缺失', type=str)
+    args = parser.parse_args(http_error_code=50003)
+    res = AdminUserService.update_password(args['uuid'], args['oldPassword'], args['newPassword'])
+    return send(200, data=res)
+
+
+

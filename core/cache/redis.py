@@ -49,7 +49,7 @@ class RedisCache(BaseCache):
                  app,
                  host = "",
                  port = 6379,
-                 password = None,
+                 password = None,   #user+'@'+pwd
                  db = 0,
                  default_timeout = 300,
                  key_prefix = None,
@@ -61,7 +61,7 @@ class RedisCache(BaseCache):
         self.db = db if db else app.config.get("REDIS_DB", self.db)
         self.default_timeout = default_timeout if default_timeout else app.config.get("REDIS_DEFAULT_TIMEOUT", self.default_timeout)
         self.key_prefix = key_prefix if key_prefix else app.config.get("REDIS_KEY_PREFIX", self.key_prefix)
-        self._client = redis.StrictRedis.from_url(host=host, port=port, password=password, db=db, **kwargs)
+        self._client = redis.StrictRedis(host=self.host, port=self.port, password=self.password, db=self.db, **kwargs)
 
     def _normalize_timeout(self, timeout):
         timeout = BaseCache._normalize_timeout(self, timeout)

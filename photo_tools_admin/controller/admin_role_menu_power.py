@@ -44,4 +44,22 @@ def set_powers_by_role_ids():
     return send(200, data=res)
 
 
+# 单独给菜单赋予角色权限
+@admin.route('/setMenuRoles', methods=['POST'])
+def set_menu_roles():
+    parser = reqparse.RequestParser()
+    parser.add_argument('menu_id', help='菜单标识不能为空', type=int, required=True)
+    parser.add_argument('role_ids', help='角色标识不能为空', action='append')
+    args = parser.parse_args(http_error_code=50009)
+    role_ids = args['role_ids']
+    menu_id = args['menu_id']
+    add_count, delete_count, no_delete_role_infos = AdminRoleMenuPowerService.set_menu_roles(menu_id, role_ids)
+    res = "成功为菜单添加{}角色;".format(add_count)
+    if delete_count>0:
+        res = res + "删除取消的角色{};".format(delete_count)
+    if len(no_delete_role_infos)>0:
+        res = res + "因角色{}拥有此菜单下的操作权限,无法取消".format("、".join(no_delete_role_infos))
+    return send(200, data=res)
+
+
 

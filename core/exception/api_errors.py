@@ -14,6 +14,7 @@ def error_token(error):
 
 @app.errorhandler(APIException)
 def catch_error(error):
+	print("ssssss")
     file, line, func, _ = get_error_info()
     app.logger.error('代码错误：{0}, {1}({2})[{3}]'.format(str(error), file, line, func))
     return send(error.code, error.msg, error.data)

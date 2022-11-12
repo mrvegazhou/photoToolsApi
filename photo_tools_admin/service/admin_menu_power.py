@@ -61,8 +61,5 @@ class AdminMenuPowerService:
         return AdminMenuPower.del_menu_power(uuid)
 
 
-
-
 if __name__ == "__main__":
-    res = AdminMenuPowerService.get_menu_powers()
-    print(res)
+    pass

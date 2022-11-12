@@ -3,7 +3,7 @@ import sys
 sys.path.append("/Users/vega/workspace/codes/py_space/working/photo-tools-api")
 from photo_tools_admin.model.admin_menu import AdminMenu
 from photo_tools_admin.model.admin_role_menu_power import AdminRoleMenuPower
-
+from photo_tools_admin.exception.api_exception import ParentIdIsNone
 
 class AdminMenuService:
 
@@ -17,6 +17,10 @@ class AdminMenuService:
 
     @staticmethod
     def add_menu(parent, title, url, icon, description, status, sorts):
+        if parent is None:
+            raise ParentIdIsNone()
+        # 获取当前用户角色
+
         return AdminMenu.add_new_menu(parent=parent, title=title, url=url, icon=icon, description=description, status=status, sorts=sorts)
 
     @staticmethod

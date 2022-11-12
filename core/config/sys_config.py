@@ -12,7 +12,7 @@ class Config:
     PASSWORD = "root"
     HOST = "127.0.0.1"
     PORT = "5432"
-    DATABASE = "stock"
+    DATABASE = "app_tool_db"
     DB_URI = "{}+{}://{}:{}@{}:{}/{}".format(DIALCT, DRIVER, USERNAME, PASSWORD, HOST, PORT, DATABASE)
     SQLALCHEMY_DATABASE_URI = DB_URI
     SQLALCHEMY_ENGINE_OPTIONS = {

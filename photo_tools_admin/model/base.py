@@ -5,7 +5,7 @@ from photo_tools_admin.__init__ import db, utils
 
 class Base(db.Model):
     __abstract__ = True
-    __table_args__ = {'extend_existing': True, 'schema': 'stock'}
+    __table_args__ = {'extend_existing': True, 'schema': 'admin'}
 
     def set_attrs(self, attrs_dict):
         for key, value in attrs_dict.items():

@@ -24,6 +24,12 @@ class DelRoleFailed(APIException):
     data = ''
 
 
+class ParentIdIsNone(APIException):
+    res_code = 60006
+    msg = CODE[60006]
+    http_code = 400
+    data = ''
+
 
 
 

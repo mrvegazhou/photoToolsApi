@@ -44,7 +44,6 @@ def login():
         session_key = rq_json.get('session_key')
         # jwt生成
         jwt_token = JwtUtil.encode_token({'openid': openid, 'session_key': session_key})
-        print(jwt_token, openid, session_key, '-------jwt=---------')
         return send(200, data={'jwt': jwt_token, 'openid': openid})
 
 

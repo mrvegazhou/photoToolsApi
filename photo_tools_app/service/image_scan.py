@@ -2,7 +2,6 @@
 
 import cv2
 import numpy as np
-from scipy.ndimage import gaussian_filter
 from imutils import perspective
 from skimage.filters import threshold_local
 
@@ -49,7 +48,9 @@ class ScanImage:
 
     # 判断轮廓 有轮廓就输出轮廓的内容
     @staticmethod
-    def get_outline_scan_img(img_path):
+    def get_outline_scan_img(img_path, dst_path):
+        if not img_path or not dst_path:
+            return False
         image = cv2.imread(img_path)
         orig = image.copy()
         # 灰度转化
@@ -71,6 +72,7 @@ class ScanImage:
                 break
         if screenCnt is None:
             print("No contour detected")
+            dst = gray_image
         else:
 
             # 将目标映射到800*800四边形
@@ -98,15 +100,16 @@ class ScanImage:
             warped = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)
             # 阈值分割
             T = threshold_local(warped, 11, offset=10, method='gaussian')
+            dst = (warped > T).astype('uint8') * 255
             # scan_img = ScanImage.get_scan_img(warped)
 
         dst = ScanImage.cv2_enhance_contrast(dst)
-        cv2.imwrite("test5.png", dst)
+        return cv2.imwrite(dst_path, dst)
 
 
 if __name__ == "__main__":
-    img_path = r"/Users/vega/workspace/codes/py_space/working/photo-tools-api/photo_tools_app/service/rrrr.png"
-    ScanImage.get_outline_scan_img(img_path)
+    img_path = r"/Users/vega/workspace/codes/py_space/working/photo-tools-api/photo_tools_app/service/shuiyin.png"
+    print(ScanImage.get_outline_scan_img(img_path, "/Users/vega/workspace/codes/py_space/working/photo-tools-api/photo_tools_app/service/shuiyin2.png"))
     # image = cv2.imread(img_path)
     # scan_img = ScanImage.get_scan_img(image)
     # scan_img = ScanImage.gauss_division(image)

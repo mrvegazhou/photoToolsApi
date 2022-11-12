@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from stock_app.__init__ import db, utils
+from photo_tools_app.__init__ import db, utils
 import typing
 
 class Base(db.Model):

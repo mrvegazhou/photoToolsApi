@@ -5,7 +5,8 @@ from flask import Flask, request, make_response, send_from_directory, current_ap
 from .config.sys_config import config
 
 from flask_sqlalchemy import SQLAlchemy
-
+from sqlalchemy.orm import load_only
+from sqlalchemy.sql import func
 from flask_apscheduler import APScheduler
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -60,9 +61,6 @@ Blueprint = Blueprint
 RedprintAssigner = RedprintAssigner
 Redprint = Redprint
 RedprintWithDoc = RedprintWithDoc
-
-from .cache import RedisCache as Cache
-cache = Cache()
 
 # 当前目录
 CORE_DIR = os.path.split(os.path.abspath(__file__))[0]  # 当前目录

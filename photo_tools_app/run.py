@@ -37,7 +37,7 @@ app.after_request(after_request)
 class staticFileConverter(BaseConverter):
     def __init__(self, url_map):
         super().__init__(url_map)
-        self.regex = r'[0-9A-Za-z]{1,32}(_rgba|_c|_fixed)?\.(png|jpe?g|gif|svg)'
+        self.regex = r'[0-9A-Za-z]{1,32}(_rgba|_c|_fixed|_old|_s)?\.(png|jpe?g|gif|svg)'
 app.url_map.converters["staticFile"] = staticFileConverter
 
 if __name__ == "__main__":
@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
     if WEB_IP == 'localhost':
         # 本地调试
-        app.run(host='0.0.0.0', port=WEB_PORT, threaded=True, debug=False)
+        app.run(host='0.0.0.0', port=WEB_PORT, threaded=True, debug=True)
         # app.run()
         # ssl_context = (
         #    './server.crt',

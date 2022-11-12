@@ -3,8 +3,8 @@ import sys
 sys.path.append("/Users/vega/workspace/codes/py_space/working/photo-tools-api")
 from photo_tools_admin.model.admin_user import AdminUser
 from photo_tools_admin.__init__ import utils
-from core.exception.api_exception import UserNotFoundError, AddUserError, UserHaveExistedError, UserPasswordError
-from core.decorator.oath2_tool import clear_token
+from core.exception.api_exception import UserNotFoundError, AddUserError, UserHaveExistedError, UserPasswordError, UserPasswordSameError
+from photo_tools_admin.decorator.oath2_tool import clear_token, create_token
 from photo_tools_admin.service.admin_user_role import AdminUserRoleService
 from photo_tools_admin.config.constant import Constant
 
@@ -23,6 +23,9 @@ class AdminUserService:
         tmp_user_info = dict(user_info)
         del tmp_user_info['password']
         tmp_user_info['roles'] = AdminUserRoleService.get_user_role_ids(user_info.uuid)
+        #token
+        token = create_token(user_info.uuid, user_info.password, '')
+        tmp_user_info['token'] = token
         return tmp_user_info
 
     @staticmethod
@@ -43,8 +46,17 @@ class AdminUserService:
         return user_info
 
     @staticmethod
-    def update_password():
-        pass
+    def update_password(uuid, old_password, password):
+        if old_password == password:
+            raise UserPasswordSameError()
+        user_info = AdminUser.get_userinfo_by_uuid(uuid)
+        if not user_info:
+            raise UserNotFoundError()
+        salt = user_info.salt
+        pwd = user_info.password
+        if pwd != utils['common'].md5('{}{}'.format(old_password, salt)):
+            raise UserPasswordError()
+        return AdminUser.update_admin_user_info(uuid, password=password)
 
     @staticmethod
     def update_user(kwargs):

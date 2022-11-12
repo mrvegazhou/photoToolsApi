@@ -32,7 +32,20 @@ class StaticPages(object):
         elif "_old" in name: # 图片修复
             name = fileName.rsplit('_old', 1)[0]
             fileName = '{}{}{}_old.{}'.format('restored', cur_sep, name, ext)
+        elif "_s" in name: # 扫描后的图片
+            name = fileName.rsplit('_s', 1)[0]
+            fileName = '{}{}{}_s.{}'.format('scan', cur_sep, name, ext)
+
         dir1, dir2 = getUploadDirs(name)
         imgPath = '{}{}{}{}{}{}{}'.format(upload_dir, cur_sep, dir1, cur_sep, dir2, cur_sep, fileName)
         return imgPath, name, ext
+
+
+    @staticmethod
+    def getStaticFile(fileName, type=''):
+        if not type:
+            type = 'wechat'
+        cur_sep = os.path.sep
+        upload_dir = app.config['UPLOAD_FOLDER']
+        img_path = '{}{}static{}{}'.format(upload_dir, cur_sep, type, fileName)
 

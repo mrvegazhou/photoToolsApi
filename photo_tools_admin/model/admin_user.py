@@ -117,8 +117,6 @@ class AdminUser(Base):
 
 
 
-
-
 if __name__ == "__main__":
     res = AdminUser.update_admin_user_info(3, email='admin2@qq.com')
     print(res)

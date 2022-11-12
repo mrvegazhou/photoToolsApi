@@ -2,6 +2,7 @@
 import json
 from flask import request
 from werkzeug.exceptions import HTTPException
+import typing as t
 from ..http.response import CODE
 
 
@@ -23,24 +24,33 @@ class APIException(HTTPException):
         self.kwargs = kwargs
         super(APIException, self).__init__(msg, None)
 
-    def get_body(self, environ=None):
+    def get_body(
+        self,
+        environ: t.Optional["WSGIEnvironment"] = None,
+        scope: t.Optional[dict] = None,
+    ) -> str:
         body = dict(
             code=self.res_code,
             msg=self.msg,
-            request=request.method + ' ' + self.get_url_no_parm(),
+            # request=request.method + ' ' + self.get_url_no_parm(),
             data=self.data
         )
         # sort_keys 取消排序规则，ensure_ascii 中文显示
         text = json.dumps(body, sort_keys=False, ensure_ascii=False)
         return text
 
-    def get_headers(self, environ=None):
+    def get_headers(
+        self,
+        environ: t.Optional["WSGIEnvironment"] = None,
+        scope: t.Optional[dict] = None,
+    ) -> t.List[t.Tuple[str, str]]:
         return [('Content-Type', 'application/json')]
 
     @staticmethod
     def get_url_no_parm():
-        full_path = str(request.path)
-        return full_path
+        full_path = str(request.full_path)
+        main_path = full_path.split('?')
+        return main_path[0]
 
 
 class ServerError(APIException):
@@ -63,6 +73,11 @@ class UserNotFoundError(APIException):
 class UserPasswordError(APIException):
     res_code = 10002
     msg = CODE[10002]
+    http_code = 400
+
+class UserPasswordSameError(APIException):
+    res_code = 10023
+    msg = CODE[10023]
     http_code = 400
 
 

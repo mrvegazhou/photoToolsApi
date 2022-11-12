@@ -29,7 +29,7 @@ class AdminUserRole(Base):
 
     @staticmethod
     def assign_user_roles(admin_user_id, role_ids: typing.List):
-        '''insert into stock.admin_user_role (role_id, admin_user_id) values (4, 3) ON conflict(role_id, admin_user_id) DO UPDATE SET create_time=NOW()'''
+        '''insert into admin.admin_user_role (role_id, admin_user_id) values (4, 3) ON conflict(role_id, admin_user_id) DO UPDATE SET create_time=NOW()'''
         name = AdminUserRole.__tablename__
         schema = AdminUserRole.__table_args__
         schema = schema['schema']
@@ -76,8 +76,8 @@ class AdminUserRole(Base):
         admin_user_ids = ','.join('%s' %id for id in admin_user_ids)
         tbl_name = '{schema}.{table}'.format(schema=schema, table=name)
         return db.session.connection().execute(db.text(
-            "SELECT  admin_user_id, array_to_string(ARRAY(SELECT unnest(array_agg(role_id))),',') AS role_ids FROM stock.admin_user_role where admin_user_id in ({admin_user_ids}) GROUP BY admin_user_id"
-                .format(tbl_name=tbl_name, admin_user_ids=admin_user_ids))).fetchall()
+            "SELECT  admin_user_id, array_to_string(ARRAY(SELECT unnest(array_agg(role_id))),',') AS role_ids FROM {schema}.admin_user_role where admin_user_id in ({admin_user_ids}) GROUP BY admin_user_id"
+                .format(schema=schema, tbl_name=tbl_name, admin_user_ids=admin_user_ids))).fetchall()
 
 
 

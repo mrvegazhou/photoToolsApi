@@ -9,7 +9,7 @@ from photo_tools_admin.config.constant import Constant
 class AdminRole(Base):
 
     __tablename__ = 'admin_role'
-    __table_args__ = {'extend_existing': True, 'schema': 'stock'}
+    __table_args__ = {'extend_existing': True, 'schema': 'admin'}
 
     uuid = db.Column(db.Integer, primary_key=True, autoincrement=True, unique=True)
     title = db.Column(db.String(255), nullable=False, comment="角色名称")

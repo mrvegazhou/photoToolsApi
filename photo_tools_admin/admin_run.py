@@ -8,7 +8,7 @@ if __name__ == "__main__":
 
     if WEB_IP == 'localhost':
         # 本地调试
-        app.run(host='0.0.0.0', port=WEB_PORT, debug=False, threaded=True)
+        app.run(host='0.0.0.0', port=WEB_PORT, debug=True, threaded=True)
         # app.run()
         # ssl_context = (
         #    './server.crt',
