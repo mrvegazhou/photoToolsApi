@@ -16,9 +16,18 @@ class StaticPages(object):
         }
 
     @staticmethod
+    def getFontTypes():
+        return {
+            'ttf': 'font/truetype',
+            'otf': 'font/opentype',
+            'woff': 'application/font-woff',
+            'woff2': 'application/font-woff2'
+        }
+
+    @staticmethod
     def getStaticPageUrl(fileName):
         cur_sep = os.path.sep
-        upload_dir = app.config['UPLOAD_FOLDER']
+        upload_dir = "/Users/vega/workspace/codes/py_space/working/photo-tools-api/uploads" #app.config['UPLOAD_FOLDER']
         name, ext = fileName.rsplit('.', 1)
         if "_rgba" in name: # 抠图
             name = fileName.rsplit('_rgba', 1)[0]
@@ -47,5 +56,6 @@ class StaticPages(object):
             type = 'wechat'
         cur_sep = os.path.sep
         upload_dir = app.config['UPLOAD_FOLDER']
-        img_path = '{}{}static{}{}'.format(upload_dir, cur_sep, type, fileName)
+        img_path = '{}{}static{}{}{}{}'.format(upload_dir, cur_sep, cur_sep, type, cur_sep, fileName)
+        return img_path
 

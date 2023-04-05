@@ -56,7 +56,7 @@ def ImageFix():
         try:
             flag = FixImg.restoreOldPhotoByMicrosoft(new_file_name, ext, file_dir, file_input_file_path, file_output_dir_path)
             if not flag:
-                return send(80011, data=CODE[80011]+'~')
+                return send(80011, data=CODE[80011])
         except Exception:
             return send(80011, data=CODE[80011])
 

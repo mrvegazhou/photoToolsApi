@@ -2,7 +2,8 @@
 from photo_tools_app.model.app_user import AppUser
 from photo_tools_admin.config.constant import Constant
 from photo_tools_admin.service.app_user import AppUser
-from core.exception.api_exception import UserNotFoundError
+from core.exception.api_exception import UserNotFoundError, AddUserError
+from core.exception.api_exception import APIException
 
 class AppUserService(object):
     @staticmethod
@@ -57,3 +58,11 @@ class AppUserService(object):
         if not uuid:
             raise UserNotFoundError()
         return AppUser.del_user([uuid])
+
+    @staticmethod
+    def addAppUserInfo(obj):
+        if not obj:
+            raise AddUserError()
+        if (not hasattr(obj, 'username')) or (not obj.username):
+            raise APIException(msg='用户名不能为空', code=50009)
+        return AppUser.add_app_user_info(obj)

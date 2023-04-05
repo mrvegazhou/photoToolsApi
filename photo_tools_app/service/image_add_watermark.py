@@ -20,7 +20,11 @@ class Watermark:
     2：方正黑体简体
     3：青鸟华光简琥珀
     """
-    fontTTFs = {1:'../font/华文楷体.ttf', 2:'../font/方正黑体简体.ttf', 3:'../font/青鸟华光简琥珀.ttf'}
+    fontTTFs = {
+        1:'../../uploads/static/wechat/font/华文楷体.ttf',
+        2:'../../uploads/static/wechat/font/方正黑体简体.ttf',
+        3:'../../uploads/static/wechat/font/font/青鸟华光简琥珀.ttf'
+    }
     ttf = 1
 
     # 添加铺满文字水印

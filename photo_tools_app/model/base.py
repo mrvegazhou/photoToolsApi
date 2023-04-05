@@ -21,7 +21,7 @@ class Base(db.Model):
                 setattr(self, key, value)
 
     def __repr__(self) -> str:
-        return self._repr(id=self.id)
+        return self._repr(uuid=self.uuid)
 
     def _repr(self, **fields: typing.Dict[str, typing.Any]) -> str:
         '''

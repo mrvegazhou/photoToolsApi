@@ -3,6 +3,8 @@ import json
 from flask import Response
 from ..utils.common import ComplexEncoder
 
+
+
 CODE = {
     # 正常操作
     200: '操作成功',
@@ -88,12 +90,19 @@ CODE = {
     80011: '修复异常',
     80012: '图片大小超出限制',
     80013: '图片处理异常',
+    # 字体文件处理
+    81001: '字体文件不存在',
+
+    90000: '添加app用户失败',
+    90001: '修改app用户失败',
+    90002: '删除app用户失败',
+    90003: '获取app用户失败',
+
+
 
     -1:    '未知错误',
     404: '请求路径不存在'
 }
-
-
 def json_return(data):
     return Response(json.dumps(data, cls=ComplexEncoder, separators=(",", ":"), ensure_ascii=False), mimetype="application/json")
 

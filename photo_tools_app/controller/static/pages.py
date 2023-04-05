@@ -30,3 +30,17 @@ def staticImg(imgName):
     with open(imgPath, 'rb') as f:
         image = f.read()
     return Response(image, mimetype=mdict[ext.lower()])
+
+
+@api.route('/font/<fontName>', methods=["POST", "GET"])
+def staticFont(fontName):
+    fontTypes = StaticPages.getFontTypes()
+    name, ext = fontName.rsplit('.', 1)
+    cur_sep = os.path.sep
+    typePath = 'wechat{}font'.format(cur_sep)
+    fontPath = StaticPages.getStaticFile(fontName, type=typePath)
+    if not os.path.exists(fontPath):
+        return send(81001, data=CODE[81001])
+    with open(fontPath, 'rb') as f:
+        image = f.read()
+    return Response(image, mimetype=fontTypes[ext.lower()])

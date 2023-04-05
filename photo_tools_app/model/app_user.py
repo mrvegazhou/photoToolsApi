@@ -48,6 +48,13 @@ class AppUser(Base):
         return json.dumps(obj, cls=utils["common"].ComplexEncoder)
 
     @staticmethod
+    def add_app_user_info(obj):
+        db.session.add(obj)
+        db.session.commit()
+        uuid = obj.uuid
+        return uuid
+
+    @staticmethod
     def get_userinfo_by_uuid(uuid):
         return AppUser.query.filter_by(uuid=uuid).first()
 
