@@ -95,7 +95,7 @@ class AdminRoleMenuPower(Base):
         sql_insert = ','.join(sql_insert)
         result = db.session.connection().execute(db.text(
             'insert into {tbl_name} (role_id, menu_id, power_id) values {sql_str} ON conflict(role_id, menu_id, power_id) DO UPDATE SET create_time=NOW()'
-                .format(tbl_name=tbl_name, sql_str=sql_insert)), sql_insert_dict)
+                .format(tbl_name=tbl_name, sql_str=sql_insert)), **sql_insert_dict)
         db.session.commit()
         return result.rowcount
 

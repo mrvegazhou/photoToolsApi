@@ -5,6 +5,7 @@ from photo_tools_app.model.base import Base
 from photo_tools_app.__init__ import db, utils, func
 from photo_tools_app.config.constant import Constant
 
+
 class AppUser(Base):
 
     __tablename__ = 'app_user'
@@ -16,6 +17,7 @@ class AppUser(Base):
     email = db.Column(db.String(50), nullable=False, server_default="", comment="email")
     description = db.Column(db.String(255), server_default="", comment="描述")
     type = db.Column(db.SMALLINT, default=1, server_default='1', comment="1 wechat 2 其他")
+    openid = db.Column(db.String(50), default=1, server_default='', comment="wechat openid")
     status = db.Column(db.SMALLINT, default=1, server_default='1', comment="1 正常 0 禁止")
     create_time = db.Column(db.TIMESTAMP, comment="创建时间", server_default=func.now())
     update_time = db.Column(db.TIMESTAMP, comment="修改时间")
@@ -29,6 +31,7 @@ class AppUser(Base):
             "email": self.email,
             "description": self.description,
             "type": self.type,
+            "openid": self.openid,
             "status": self.status,
             "create_time": self.create_time,
             "update_time": self.update_time,
@@ -59,7 +62,7 @@ class AppUser(Base):
         return AppUser.query.filter_by(uuid=uuid).first()
 
     @staticmethod
-    def get_app_user_info_by_sql(attr, val, cols=None):
+    def get_app_user_info_by_attr(attrs, cols=None):
         name = AppUser.__tablename__
         schema = AppUser.__table_args__
         schema = schema['schema']
@@ -69,10 +72,16 @@ class AppUser(Base):
             cols = ','.join(cols)
         else:
             cols = '*'
+        attrs_str = []
+        vals_str = {}
+        for attr in attrs:
+            attrs_str.append('{}{}:{}'.format(attr['name'], attr['op'], attr['name']))
+            vals_str[attr['name']] = attr['val']
+        attrs_str = ' and '.join(attrs_str)
         result = db.session.connection().execute(db.text(
-            'select {cols} from {tbl_name} where {attr} = :val'.format(
-                cols=cols, tbl_name=tbl_name, attr=attr)),
-            {'val': val})
+            'select {cols} from {tbl_name} where {attrs_str}'.format(
+                cols=cols, tbl_name=tbl_name, attrs_str=attrs_str)),
+            vals_str)
         return result.fetchone()
 
     def get_all(self):

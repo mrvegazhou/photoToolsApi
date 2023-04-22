@@ -56,3 +56,13 @@ class FaceImgNotExists(APIException):
     res_code = 80008
     msg = CODE[80008]
     http_code = 401
+
+class FeedbackContentIsNull(APIException):
+    res_code = 11001
+    msg = CODE[11001]
+    http_code = 401
+
+class FeedbackTypeIsNull(APIException):
+    res_code = 11002
+    msg = CODE[11002]
+    http_code = 401

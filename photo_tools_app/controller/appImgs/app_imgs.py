@@ -17,7 +17,6 @@ def AppImgs():
 
     tags = entry.get('tags')
     page = entry.get('page')
-    print(tags, page, '--s---')
     load_time = entry.get('load_time')
-    list = AppImgsService.getAppImgsList(page=page, tags=tags, load_time=load_time)
+    list = AppImgsService.get_app_imgs_list(page=page, tags=tags, load_time=load_time)
     return send(200, data={"list": list})

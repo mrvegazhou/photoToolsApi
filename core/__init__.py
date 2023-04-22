@@ -36,8 +36,9 @@ scheduler.init_app(app)
 scheduler.start()
 # 限速
 limiter = Limiter(
-    app,
-    key_func=get_remote_address
+    get_remote_address,
+    app=app,
+    storage_uri="memory://",
 )
 # 数据库
 db = SQLAlchemy(app)

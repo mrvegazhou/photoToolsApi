@@ -6,7 +6,7 @@ import jwt
 from photo_tools_app.exception.api_exception import JWTExpiredSignatureError, JWTDecodeError, JWTInvalidTokenError
 from photo_tools_app import send
 from photo_tools_app.utils.jwt_util import JwtUtil
-
+from photo_tools_app.service.app_user import AppUserService
 
 def jwt_required(f):
     @functools.wraps(f)
@@ -42,17 +42,24 @@ def jwt_wx_authentication():
     g.session_key = None
     auth = request.headers.get('Authorization')
     if auth and auth.startswith('Bearer '):
-        "提取token 0-6 被Bearer和空格占用 取下标7以后的所有字符"
+        """提取token 0-6 被Bearer和空格占用 取下标7以后的所有字符"""
         token = auth[7:]
         try:
-            "判断token的校验结果"
+            """判断token的校验结果"""
             # payload = jwt.decode(token, Constant.JWT_SALT.value, algorithms=['HS256'])
             payload = JwtUtil.decode_token(token)
-            "获取载荷中的信息赋值给g对象"
+            """获取载荷中的信息赋值给g对象"""
             if isinstance(payload, dict) and 'data' in payload.keys():
                 data = payload['data']
                 session_key = data['session_key']
+                openid = data['openid']
                 g.session_key = session_key
+                g.openid = openid
+                user_info = AppUserService.getAppUserInfo(openid)
+                if user_info:
+                    g.uuid = user_info.uuid
+                else:
+                    g.uuid = None
             else:
                 g.session_key = -3
         except jwt.exceptions.ExpiredSignatureError:  # 'token已失效'

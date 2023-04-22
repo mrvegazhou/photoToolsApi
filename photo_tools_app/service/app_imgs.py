@@ -1,16 +1,20 @@
 # _*_ coding: utf-8 _*_
+import os
 import sys
 sys.path.append("/Users/vega/workspace/codes/py_space/working/photo-tools-api")
 
 from photo_tools_app.model.app_imgs import AppImgs as AppImgsModel
+from photo_tools_app.service.image_upload import UploadImg
 from photo_tools_app.service.static_pages import StaticPages
 from PIL import Image
-
+from io import BytesIO
+import base64
+import re
 
 class AppImgsService(object):
     @staticmethod
-    def getAppImgsList(page=1, tags=None, url=None, type=None, load_time=None, begin_date=None, end_date=None):
-        list = AppImgsModel.getAppImgs(page_num=page, tags=tags, url=url, type=type, load_time=load_time, begin_date=begin_date, end_date=end_date)
+    def get_app_imgs_list(page=1, tags=None, url=None, type=None, load_time=None, begin_date=None, end_date=None):
+        list = AppImgsModel.get_app_imgs(page_num=page, tags=tags, url=url, type=type, load_time=load_time, begin_date=begin_date, end_date=end_date)
         for i, item in enumerate(list):
             res = StaticPages.getStaticPageUrl(item.url)
             img = Image.open(res[0])
@@ -21,8 +25,38 @@ class AppImgsService(object):
             list[i] = item
         return list
 
+    @staticmethod
+    def save_app_img_file_info(img, type='base64'):
+        if not img:
+            return False
+        new_file_name, file_dir = UploadImg.createUploadPathAndFileName()
+        path = r"{}{}{}".format(file_dir, os.path.sep, new_file_name)  # 图片路径
+        res = ''
+        if not os.path.exists(file_dir):
+            os.makedirs(file_dir)
+        if type=='base64':
+            base64_data = re.sub('^data:image/.+;base64,', '', img)
+            image_data = BytesIO(base64.b64decode(base64_data))
+            new_img = Image.open(image_data)
+            new_img.save(path + '.png', "PNG")
+            res = new_file_name + '.png'
+        elif type=='img':
+            ext = img.rsplit('.', 1)[1]
+            if not ext:
+                return False
+            new_img = Image.open(img)
+            new_img.save(path + '.png', ext)
+            res = new_file_name + '.' + ext
+        return res
+
+    @staticmethod
+    def save_app_imgs(imgs):
+        if len(imgs)==0:
+            return
+        return AppImgsModel.batch_save_imgs(imgs)
+
 
 if __name__ == "__main__":
-    list = AppImgsService.getAppImgsList()
-    print(list[0], '---')
+   res = AppImgsService.save_app_imgs([{'tags':'', 'url':'test', 'type':1},{'tags':'', 'url':'test', 'type':1}])
+   print(res)
     # print(StaticPages.getStaticPageUrl('3531e743a1de4217ab8395ee07bb518a.png'))
