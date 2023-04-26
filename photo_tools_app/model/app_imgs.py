@@ -28,12 +28,21 @@ class AppImgs(Base):
             "update_time": self.update_time
         }
 
+    types = {1:'反馈', 2:'画板'}
+
     @staticmethod
     def get_type(name):
-        types = {'feedback':1, '画板':2}
+        types = {'反馈':1, '画板':2}
         if name not in types.keys():
             return False
         return types[name]
+
+    @staticmethod
+    def get_type_name(num):
+        if num in AppImgs.types:
+            return AppImgs.types[num]
+        else:
+            return '未知'
 
     def __repr__(self):
         obj = AppImgs.get_keys(self)
@@ -78,6 +87,55 @@ class AppImgs(Base):
         return exp.order_by(AppImgs.uuid.asc()).offset(start).limit(page_size).all()
 
     @staticmethod
+    def get_app_imgs_by_page(page_num=1,
+                             page_size=Constant.PAGE_SIZE.value,
+                             tags=None,
+                             url=None,
+                             type=None,
+                             begin_date=None,
+                             end_date=None):
+        total = AppImgs.get_app_imgs_total(tags, url, type, begin_date, end_date)
+        start, end = utils['common'].pagination(page_num, page_size, total)
+        exp = AppImgs.query
+        if tags:
+            tags_list = tags.split()
+            if len(tags_list)==1:
+                exp = exp.filter(AppImgs.tags.ilike('%{keyword}%'.format(keyword=tags)))
+            else:
+                or_ilike_list = []
+                for tag in tags_list:
+                    or_ilike_list.append(AppImgs.tags.ilike('%{keyword}%'.format(keyword=tag)))
+                exp = exp.filter(or_(*or_ilike_list))
+        if url:
+            exp = exp.filter(AppImgs.url == url)
+        if type:
+            exp = exp.filter(AppImgs.type == type)
+        if begin_date and end_date:
+            exp = exp.filter(db.and_(AppImgs.create_time <= begin_date, AppImgs.create_time >= end_date))
+        return exp.order_by(AppImgs.uuid.asc()).offset(start).limit(page_size).all(), total
+
+
+    @staticmethod
+    def get_app_imgs_total(tags=None, url=None, type=None, begin_date=None, end_date=None):
+        exp = db.session.query(db.func.count(AppImgs.uuid))
+        if tags:
+            tags_list = tags.split()
+            if len(tags_list)==1:
+                exp = exp.filter(AppImgs.tags.ilike('%{keyword}%'.format(keyword=tags)))
+            else:
+                or_ilike_list = []
+                for tag in tags_list:
+                    or_ilike_list.append(AppImgs.tags.ilike('%{keyword}%'.format(keyword=tag)))
+                exp = exp.filter(or_(*or_ilike_list))
+        if url:
+            exp = exp.filter(AppImgs.url == url)
+        if type:
+            exp = exp.filter(AppImgs.type == type)
+        if begin_date and end_date:
+            exp = exp.filter(db.and_(AppImgs.create_time <= begin_date, AppImgs.create_time >= end_date))
+        return exp.scalar()
+
+    @staticmethod
     def save_imgs(obj):
         db.session.add(obj)
         db.session.commit()
@@ -110,3 +168,20 @@ class AppImgs(Base):
                 .format(tbl_name=tbl_name, sql_str=','.join(sql_insert))), **sql_insert_dict)
         db.session.commit()
         return result.fetchall()
+
+    @staticmethod
+    def update_app_img(uuid, **args):
+        info = {'update_time': datetime.now(tz=timezone.utc)}
+        for key, val in args.items():
+            if hasattr(AppImgs, key) and key != 'uuid' and key != 'create_time':
+                info[key] = val
+        num_rows_updated = AppImgs.query.filter_by(uuid=uuid).update(info)
+        db.session.commit()
+        return num_rows_updated
+
+    @staticmethod
+    def del_app_img(uuid):
+        deleted_objects = AppImgs.__table__.delete().where(AppImgs.uuid == uuid)
+        result = db.session.execute(deleted_objects)
+        db.session.commit()
+        return result.rowcount

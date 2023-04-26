@@ -2,7 +2,7 @@
 1.  说明：
         登录
     地址：
-        /admin/finance/login
+        /admin/sys/login
     参数：
         password=123@AC123
         username=admin
@@ -20,7 +20,7 @@
 
 2.  通过角色ID查询对应的角色数据
     地址：
-        /admin/finance/roleMenuPowers
+        /admin/sys/roleMenuPowers
     参数：
         role_ids
     返回值：
@@ -47,7 +47,7 @@
 
 3.  所有的角色数据
     地址：
-        /admin/finance/sysRoles
+        /admin/sys/sysRoles
     返回值：
        [{
         id: 1,
@@ -67,14 +67,14 @@
 
 4.  添加角色
     地址：
-        /admin/finance/addRole
+        /admin/sys/addRole
     返回值：
         {"code":200,"msg":"操作成功","data":5}
 
 
 5.  根据权限ids获取权限列表
     地址：
-        /admin/finance/menuPowersByPowerIds
+        /admin/sys/menuPowersByPowerIds
     参数：
         power_ids: [2, 3, 5, 4, 6]
     返回值：
@@ -83,7 +83,7 @@
 
 6.  根据菜单ids获取菜单列表
     地址：
-        /admin/finance/menusByIds
+        /admin/sys/menusByIds
     参数：
         menu_ids: [2]
     返回值：
@@ -92,7 +92,7 @@
 
 7.  根据角色id修改角色信息
     地址：
-        /admin/finance/updateRole
+        /admin/sys/updateRole
     参数：
         description: "miaoshu2"
         sorts: 1
@@ -104,7 +104,7 @@
 
 8.  根据菜单id获取权限列表
     地址：
-        /admin/finance/menuPowersByMenuId
+        /admin/sys/menuPowersByMenuId
     参数：
         menu_id: 1
     返回值：
@@ -129,7 +129,7 @@
 
 9.  获取所有角色关联的菜单和权限列表
     地址：
-        /admin/finance/allRolesMenuPowers
+        /admin/sys/allRolesMenuPowers
     返回值：
         {"code":200,"msg":"操作成功","data":[{"uuid":1,"title":"超级管理员","sorts":1,"description":"超级管理员拥有所有权限","status":1,"menu_powers":[{"menu_id":2,"powers":[4,5,3]},{"menu_id":3,"powers":[7,9]},{"menu_id":2,"powers":[1,2,3,4,5]},{"menu_id":3,"powers":[6,7,8,9,10]},{"menu_id":4,"powers":[11,12,13,14]},{"menu_id":2,"powers":[1]}]},{"uuid":3,"title":"ceshi","sorts":1,"description":"miaoshu2","status":1,"menu_powers":[]},{"uuid":12,"title":"role10","sorts":2,"description":"role10","status":1,"menu_powers":[]},{"uuid":11,"title":"role9","sorts":2,"description":"role9","status":1,"menu_powers":[]},{"uuid":7,"title":"role5","sorts":2,"description":"role5","status":1,"menu_powers":[]},{"uuid":8,"title":"role6","sorts":2,"description":"role6","status":1,"menu_powers":[]},{"uuid":4,"title":"role2","sorts":2,"description":"role2","status":1,"menu_powers":[]},{"uuid":5,"title":"role3","sorts":3,"description":"role3","status":1,"menu_powers":[]},{"uuid":9,"title":"role7","sorts":3,"description":"role7","status":1,"menu_powers":[]},{"uuid":10,"title":"role8","sorts":4,"description":"role8","status":1,"menu_powers":[]},{"uuid":6,"title":"role4","sorts":4,"description":"role4","status":1,"menu_powers":[]},{"uuid":13,"title":"role11","sorts":6,"description":"role11","status":1,"menu_powers":[]}]}
 

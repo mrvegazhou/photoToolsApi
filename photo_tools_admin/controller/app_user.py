@@ -17,7 +17,6 @@ def AppUserList():
     endDate = entry.get('end_date')
     pageNum = entry.get('page_num')
     pageSize = entry.get('page_size')
-    print(entry, 'sss')
     list, total = AppUserService.getAppUserList(page_num=pageNum,
                                                 page_size=pageSize,
                                                 username=username,

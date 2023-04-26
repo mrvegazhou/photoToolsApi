@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-from __init__ import app, WEB_IP, WEB_PORT
+from __init__ import app, WEB_IP
 from photo_tools_admin.controller import admin
 
 if __name__ == "__main__":
 
     app.register_blueprint(admin)
-
+    WEB_PORT = 5001
     if WEB_IP == 'localhost':
         # 本地调试
         app.run(host='0.0.0.0', port=WEB_PORT, debug=True, threaded=True)

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from photo_tools_admin.__init__ import send, reqparse, g
+from photo_tools_admin.__init__ import send, reqparse
 from . import admin
 from photo_tools_admin.service.admin_menu import AdminMenuService
 from photo_tools_admin.decorator.oath2_tool import need_login

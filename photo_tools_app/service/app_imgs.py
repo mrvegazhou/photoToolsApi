@@ -25,6 +25,14 @@ class AppImgsService(object):
             list[i] = item
         return list
 
+    # 分页查询图片列表
+    @staticmethod
+    def get_app_imgs_list_by_page(page=1, tags=None, url=None, type=None, begin_date=None, end_date=None):
+        list, total = AppImgsModel.get_app_imgs_by_page(page_num=page, tags=tags, url=url, type=type, begin_date=begin_date, end_date=end_date)
+        for index, img in enumerate(list):
+            list[index].type = AppImgsModel.get_type_name(list[index].type)
+        return list, total
+
     @staticmethod
     def save_app_img_file_info(img, type='base64'):
         if not img:
@@ -54,6 +62,18 @@ class AppImgsService(object):
         if len(imgs)==0:
             return
         return AppImgsModel.batch_save_imgs(imgs)
+
+    @staticmethod
+    def update_app_img(uuid, url=None, tags=None, type=0):
+        if not uuid:
+            return False
+        return AppImgsModel.update_app_img(uuid, url=url, tags=tags, type=type)
+
+    @staticmethod
+    def del_app_img(uuid):
+        if not uuid:
+            return False
+        return AppImgsModel.del_app_img(uuid)
 
 
 if __name__ == "__main__":
