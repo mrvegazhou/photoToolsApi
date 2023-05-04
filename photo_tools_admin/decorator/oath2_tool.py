@@ -9,7 +9,7 @@ from core.cache.redis import RedisCache
 from core.utils.common import get_client_ident
 from photo_tools_admin.__init__ import app, current_app, request, g
 
-cache = RedisCache(app = app)
+cache = RedisCache(app=app)
 
 # token名称
 TOKEN_NAME = "x-access-token"

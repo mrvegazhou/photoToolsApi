@@ -1,94 +1,168 @@
 # -*- coding: utf-8 -*-
-from model import stock, day_trading
+# @DateTime : 2022/8/25 17:38
+# @Author   : charlesxie
+import threading
+import uuid
+import weakref
 
-from sqlalchemy import Column,String,create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import func
-import datetime,time
-import akshare as ak
-from chinese_calendar import is_workday, is_holiday
+import redis
+import time
 
-if __name__ == "__main__":
-    # engine = create_engine('postgresql+psycopg2://postgres:root@127.0.0.1:5432/stock', echo=True)
-    # DBsession = sessionmaker(bind=engine)
-    # session = DBsession()
-    # session.execute("SET search_path TO stock")
-    # query = session.query(stock.Stock)
-    # print(session.query(func.count(stock.Stock.uuid)).one()[0])
-    #
-    # stock = stock.Stock()
-    # codes_list = stock.get_all_stock_codes()
-    # for code in codes_list:
-    #     tmp = ak.stock_zh_a_daily(code.code, "20100131", "20210506", adjust="hfq")
-    #     for index, row in tmp.iterrows():
-    #         obj = day_trading.DayTrading.model(code.code)
-    #         obj.stock_code = code.code
-    #         obj.trading_date = index
-    #         obj.close_price = row.close
-    #         obj.high_price = row.high
-    #         obj.low_price = row.low
-    #         obj.open_price = row.open
-    #         obj.volume = row.volume
-    #         obj.outstanding_share = row.outstanding_share
-    #         obj.turnover = row.turnover
-    #         session.add(obj)
-    #         session.commit()
+LOCK_SCRIPT = b"""
+if (redis.call('exists', KEYS[1]) == 0) then
+    redis.call('hincrby', KEYS[1], ARGV[2], 1);
+    redis.call('expire', KEYS[1], ARGV[1]);
+    return 1;
+end ;
+if (redis.call('hexists', KEYS[1], ARGV[2]) == 1) then
+    redis.call('hincrby', KEYS[1], ARGV[2], 1);
+    redis.call('expire', KEYS[1], ARGV[1]);
+    return 1;
+end ;
+return 0;
+"""
+UNLOCK_SCRIPT = b"""
+if (redis.call('hexists', KEYS[1], ARGV[1]) == 0) then
+    return nil;
+end ;
+local counter = redis.call('hincrby', KEYS[1], ARGV[1], -1);
+if (counter > 0) then
+    return 0;
+else
+    redis.call('del', KEYS[1]);
+    return 1;
+end ;
+return nil;
+"""
+RENEW_SCRIPT = b"""
+if redis.call("exists", KEYS[1]) == 0 then
+    return 1
+elseif redis.call("ttl", KEYS[1]) < 0 then
+    return 2
+else
+    redis.call("expire", KEYS[1], ARGV[1])
+    return 0
+end
+"""
 
-    # obj = day_trading.DayTrading
-    # code = "sh600000"
-    # start_date = "2021-04-01"
-    # end_date = "2021-04-02"
-    # pagination = obj.query.filter(obj.stock_code == code).filter(obj.trading_date >= start_date, obj.trading_date <= end_date).order_by(obj.trading_date.desc()).all()
-    # print(pagination)
 
-    import pandas as pd
+class RedisLock:
+    """
+    redis实现互斥锁，支持重入和续锁
+    """
 
-    # for pandas_datareader, otherwise it might have issues, sometimes there is some version mismatch
-    pd.core.common.is_list_like = pd.api.types.is_list_like
-    import pandas_datareader.data as web
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    import datetime
-    import time
+    def __init__(self, conn, lock_name, expire=30, uid=None, is_renew=True):
+        self.conn = conn
+        self.lock_script = None
+        self.unlock_script = None
+        self.renew_script = None
+        self.register_script()
 
-    import yfinance as yahoo_finance
+        self._name = f"lock:{lock_name}"
+        self._expire = int(expire)
+        self._uid = uid or str(uuid.uuid4())
 
-    ticker = 'NGG'
-    start_time = datetime.datetime(2017, 10, 1)
-    end_time = datetime.datetime.now().date().isoformat()
+        self._lock_renew_interval = self._expire * 2 / 3
+        self._lock_renew_threading = None
 
-    connected = False
-    while not connected:
-        try:
-            ticker_df = web.get_data_yahoo(ticker, start=start_time, end=end_time)
-            connected = True
-            print('connected to yahoo')
-        except Exception as e:
-            print("type error: " + str(e))
+        self.is_renew = is_renew
+        self.is_acquired = None
+        self.is_released = None
+
+    @property
+    def id(self):
+        return self._uid
+
+    @property
+    def expire(self):
+        return self._expire
+
+    def acquire(self):
+        result = self.lock_script(keys=(self._name,), args=(self._expire, self._uid))
+        if self.is_renew:
+            self._start_renew_threading()
+        self.is_acquired = True if result else False
+        print(f"争抢锁：{self._uid}-{self.is_acquired}\n")
+        return self.is_acquired
+
+    def release(self):
+        if self.is_renew:
+            self._stop_renew_threading()
+
+        result = self.unlock_script(keys=(self._name,), args=(self._uid,))
+        self.is_released = True if result else False
+        print(f"释放锁{self.is_released}")
+        return self.is_released
+
+    def register_script(self):
+        self.lock_script = self.conn.register_script(LOCK_SCRIPT)
+        self.unlock_script = self.conn.register_script(UNLOCK_SCRIPT)
+        self.renew_script = self.conn.register_script(RENEW_SCRIPT)
+
+    def renew(self, renew_expire=30):
+        result = self.renew_script(keys=(self._name,), args=(renew_expire,))
+        if result == 1:
+            raise Exception(f"{self._name} 没有获得锁或锁过期！")
+        elif result == 2:
+            raise Exception(f"{self._name} 未设置过期时间")
+        elif result:
+            raise Exception(f"未知错误码: {result}")
+        print("续命一波", result)
+
+    @staticmethod
+    def _renew_scheduler(weak_self, interval, lock_event):
+        print("interval:", interval)
+        while not lock_event.wait(timeout=interval):
+            lock = weak_self()
+            print(lock, "--lock--")
+            if lock is None:
+                break
+            lock.renew(renew_expire=lock.expire)
+            del lock
+
+    def _start_renew_threading(self):
+        self.lock_event = threading.Event()
+        self._lock_renew_threading = threading.Thread(target=self._renew_scheduler,
+                                                      kwargs={
+                                                          "weak_self": weakref.ref(self),
+                                                          "interval": self._lock_renew_interval,
+                                                          "lock_event": self.lock_event
+                                                      })
+
+        self._lock_renew_threading.demon = True
+        self._lock_renew_threading.start()
+
+    def _stop_renew_threading(self):
+        if self._lock_renew_threading is None or not self._lock_renew_threading.is_alive():
+            return
+        self.lock_event.set()
+        # join 作用是确保thread子线程执行完毕后才能执行下一个线程
+        self._lock_renew_threading.join()
+        self._lock_renew_threading = None
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def __exit__(self, exc_type=None, exc_val=None, exc_tb=None):
+        print("__exit__")
+        self.release()
+
+
+def run_work(my_user_id):
+    with RedisLock(redis_client, "test", uid=my_user_id, expire=5) as r:
+        if r.is_acquired:
+            print(f"just do it,{my_user_id}")
             time.sleep(5)
-            pass
+        else:
+            print(f"quit,,,,, {my_user_id}")
 
-    ticker_df = ticker_df.reset_index()
-    x_data = ticker_df.index.tolist()
-    y_data = ticker_df['Low']
 
-    x = np.linspace(0, max(ticker_df.index.tolist()), max(ticker_df.index.tolist()) + 1)
+if __name__ == '__main__':
+    redis_client = redis.Redis(host="localhost", port=6379, db=2)
+    a1 = threading.Thread(target=run_work, args=("charles",))
+    # a2 = threading.Thread(target=run_work, args=("xie",))
 
-    # 用17次多项式拟合，可改变多项式阶数；
-    pol = np.polyfit(x_data, y_data, 17)
-    # 求对应x的各项拟合函数值
-    y_pol = np.polyval(pol, x)
+    a1.start()
+    # a2.start()
 
-    # plt.figure(figsize=(15, 2), dpi=120, facecolor='w', edgecolor='k')
-    # plt.plot(x_data, y_data, 'o', markersize=1.5, color='grey', alpha=0.7)
-    # plt.plot(x, y_pol, '-', markersize=1.0, color='black', alpha=0.9)
-    # plt.legend(['stock data', 'polynomial fit'])
-    # plt.show()
-
-    data = y_pol
-    min_max = np.diff(np.sign(np.diff(data))).nonzero()[0] + 1  # local min & max
-    l_min = (np.diff(np.sign(np.diff(data))) > 0).nonzero()[0] + 1  # local min
-    l_max = (np.diff(np.sign(np.diff(data))) < 0).nonzero()[0] + 1
-
-    print(data)

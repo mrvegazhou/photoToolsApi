@@ -5,22 +5,21 @@
 处理日志相关配置
 """
 import os
-from logging import handlers, Formatter
-
+from logging import handlers, Formatter, getLogger, INFO, StreamHandler
 from flask.logging import default_handler
 
 
 class Logger(object):
-    def __init__(self, app=None, log_dir=None, log_level=None, log_keep_day=None):
+    def __init__(self, app=None, log_name=None, log_dir=None, log_level=None, log_keep_day=None):
         self.log_dir = "logs"
         self.log_level = 20     # CRITICAL:50,ERROR:40,WARNING:30,INFO:20,DEBUG:10,NOTSET:0
         self.log_keep_day = 30
 
         self.app = app
         if app is not None:
-            self.init_app(app, log_dir, log_level, log_keep_day)
+            self.init_app(app, log_name, log_dir, log_level, log_keep_day)
 
-    def init_app(self, app, log_dir=None, log_level=None, log_keep_day=None):
+    def init_app(self, app, log_name=None, log_dir=None, log_level=None, log_keep_day=None):
         # 移除缺省的日志记录器
         app.logger.removeHandler(default_handler)
 
@@ -38,9 +37,37 @@ class Logger(object):
             except Exception as e:
                 raise e
 
-        formatter = Formatter('%(asctime)s|%(levelname)s|%(pathname)s(%(lineno)d)|%(funcName)s|%(message)s')
-        log_file = os.path.join(log_path, app.name + '.log')
-        log_file_handler = handlers.TimedRotatingFileHandler(log_file, when="D", backupCount=self.log_keep_day)
+        formatter = Logger.get_formatter()
+        log_file = os.path.join(log_path, app.name if not log_name else log_name + '.log')
+        log_file_handler = Logger.get_rotating_file_handler(log_file, self.log_keep_day)
         log_file_handler.setFormatter(formatter)
         app.logger.addHandler(log_file_handler)
         app.logger.setLevel(int(self.log_level))
+
+    @staticmethod
+    def get_formatter():
+        return Formatter('%(asctime)s|%(levelname)s|%(pathname)s(%(lineno)d)|%(funcName)s|%(message)s')
+
+    @staticmethod
+    def get_rotating_file_handler(log_file, log_keep_day):
+        return handlers.TimedRotatingFileHandler(log_file, when="D", backupCount=log_keep_day, encoding="UTF-8", delay=False, utc=True)
+
+    @staticmethod
+    def setup_new_logger(logger_name=None, log_path=None, log_keep_day=15, level=INFO):
+        l = getLogger(logger_name)
+        formatter = Logger.get_formatter()
+        if not log_path:
+            app_root = os.path.dirname(__file__)
+            project_root = os.path.dirname(app_root)
+            log_file = os.path.join(project_root, 'logs', logger_name + '.log')
+        else:
+            log_file = os.path.join(log_path, logger_name + '.log')
+        fileHandler = Logger.get_rotating_file_handler(log_file, log_keep_day)
+        fileHandler.setFormatter(formatter)
+        streamHandler = StreamHandler()
+        streamHandler.setFormatter(formatter)
+
+        l.setLevel(level)
+        l.addHandler(fileHandler)
+        l.addHandler(streamHandler)
+        return l

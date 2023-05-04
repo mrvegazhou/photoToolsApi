@@ -1,9 +1,12 @@
 # _*_ coding: utf-8 _*_
-
+import os
 from enum import Enum, unique
 
 @unique
 class Constant(Enum):
+    LOGGER_NAME = 'app_tool_api'
+    BASE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
+
     # 微信·小程序
     APP_ID = 'wx69d35100ccbd246e'
     APP_SECRET = 'df6525f0b0ee9d2725f4f8295a1bc7d1'
@@ -20,5 +23,11 @@ class Constant(Enum):
     BAIDU_SECRET_KEY = '4soBMzSFClAQG5LwYxTH56TDhiPzIEwf'
 
     PAGE_SIZE = 10
+
+    # redis keys
+    R_FIX_OLD_IMG = 'fix_old_img'
+
+    # 定时任务id
+    FIX_IMG_JOB_ID = 'FIX_IMG_JOB_ID'
 
 

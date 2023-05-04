@@ -1,7 +1,12 @@
 # coding: utf-8
 from sqlalchemy.pool import QueuePool
 
+
 class Config:
+    DEBUG = '0'
+
+    USE_REDISLOCK_SCHEDULE = True
+
     '''
     database_setting
     '''
@@ -47,6 +52,30 @@ class Config:
     USER_SALT_LENGTH = 4
     PAGE_LIMIT = 10
     DEFAULT_PAGE = 1
+
+    '''
+    redis
+    '''
+    REDIS_HOST = '127.0.0.1'
+    REDIS_PORT = 6379
+    REDIS_PASSWORD = ''
+    REDIS_DB = 0
+    REDIS_DEFAULT_TIMEOUT = 300
+    REDIS_KEY_PREFIX = ''
+
+    '''
+    apscheduler config
+    '''
+    # 持久化配置，数据持久化至MongoDB
+    SCHEDULER_JOBSTORES = {'host': REDIS_HOST, 'port': REDIS_PORT, 'db': REDIS_DB, 'password': REDIS_PASSWORD}
+    # 线程池配置，最大20个线程
+    SCHEDULER_EXECUTORS = 20
+    # 调度开关开启
+    SCHEDULER_API_ENABLED = True
+    # 设置容错时间为 1小时
+    SCHEDULER_JOB_DEFAULTS = {'misfire_grace_time': 3600}
+    # 配置时区
+    SCHEDULER_TIMEZONE = 'Asia/Shanghai'
 
 
 class DevConfig(Config):

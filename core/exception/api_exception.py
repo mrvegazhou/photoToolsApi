@@ -106,3 +106,10 @@ class ValError(APIException):
     msg = CODE[50008]
     http_code = 400
     data = ''
+
+
+class RedisLockError(APIException):
+    res_code = 20009
+    msg = CODE[20009]
+    http_code = 400
+    data = ''

@@ -11,6 +11,7 @@ from io import BytesIO
 import base64
 import re
 
+
 class AppImgsService(object):
     @staticmethod
     def get_app_imgs_list(page=1, tags=None, url=None, type=None, load_time=None, begin_date=None, end_date=None):
@@ -37,7 +38,7 @@ class AppImgsService(object):
     def save_app_img_file_info(img, type='base64'):
         if not img:
             return False
-        new_file_name, file_dir = UploadImg.createUploadPathAndFileName()
+        new_file_name, file_dir, _ = UploadImg.createUploadPathAndFileName()
         path = r"{}{}{}".format(file_dir, os.path.sep, new_file_name)  # 图片路径
         res = ''
         if not os.path.exists(file_dir):
@@ -55,7 +56,7 @@ class AppImgsService(object):
             new_img = Image.open(img)
             new_img.save(path + '.png', ext)
             res = new_file_name + '.' + ext
-        return res
+        return res, file_dir
 
     @staticmethod
     def save_app_imgs(imgs):
@@ -64,10 +65,10 @@ class AppImgsService(object):
         return AppImgsModel.batch_save_imgs(imgs)
 
     @staticmethod
-    def update_app_img(uuid, url=None, tags=None, type=0):
+    def update_app_img(uuid, url=None, tags=None, type=0, base_dir=None):
         if not uuid:
             return False
-        return AppImgsModel.update_app_img(uuid, url=url, tags=tags, type=type)
+        return AppImgsModel.update_app_img(uuid, url=url, tags=tags, type=type, base_dir=base_dir)
 
     @staticmethod
     def del_app_img(uuid):
@@ -77,6 +78,34 @@ class AppImgsService(object):
 
 
 if __name__ == "__main__":
-   res = AppImgsService.save_app_imgs([{'tags':'', 'url':'test', 'type':1},{'tags':'', 'url':'test', 'type':1}])
-   print(res)
-    # print(StaticPages.getStaticPageUrl('3531e743a1de4217ab8395ee07bb518a.png'))
+    import threading, time
+
+
+    class Boss(threading.Thread):
+        def run(self):
+            print("BOSS：今晚大家都要加班。")
+            event.set()
+            time.sleep(5)
+            print("BOSS：可以下班了。")
+            event.set()
+
+
+    class Worker(threading.Thread):
+        def run(self):
+            event.wait()
+            print("Worker：哎……命苦啊！")
+            time.sleep(0.25)
+            event.clear()
+            event.wait()
+            print("Worker：Yeah!")
+
+
+    event = threading.Event()
+    threads = []
+    for i in range(5):
+        threads.append(Worker())
+    threads.append(Boss())
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()

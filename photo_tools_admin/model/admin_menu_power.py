@@ -59,6 +59,7 @@ class AdminMenuPower(Base):
         db.session.add(tmp)
         db.session.commit()
         uuid = tmp.uuid
+        db.session.close()
         return uuid
 
     @staticmethod

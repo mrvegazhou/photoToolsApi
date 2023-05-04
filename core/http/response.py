@@ -33,6 +33,7 @@ CODE = {
     20006: 'token验证失败',
     20007: 'token已失效',
     20008: '非法的token',
+    20009: '获取锁异常',
 
     # 非法行为
     30001: '操作非法',
@@ -51,6 +52,7 @@ CODE = {
     40004: '模型文件丢失',
     40005: 'FFmpeg异常',
     40006: 'shell功能异常',
+    40007: '数据异常',
 
     # 接口服务
     50001: '接口鉴权失败',
@@ -102,7 +104,8 @@ CODE = {
     11002: '反馈类型不能为空',
 
     -1:    '未知错误',
-    404: '请求路径不存在'
+    404: '请求路径不存在',
+    500: '系统异常'
 }
 def json_return(data):
     return Response(json.dumps(data, cls=ComplexEncoder, separators=(",", ":"), ensure_ascii=False), mimetype="application/json")

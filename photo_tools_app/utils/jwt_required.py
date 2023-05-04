@@ -57,9 +57,9 @@ def jwt_wx_authentication():
                 g.openid = openid
                 user_info = AppUserService.getAppUserInfo(openid)
                 if user_info:
-                    g.uuid = user_info.uuid
+                    g.uid = user_info.uuid
                 else:
-                    g.uuid = None
+                    g.uid = 0
             else:
                 g.session_key = -3
         except jwt.exceptions.ExpiredSignatureError:  # 'token已失效'

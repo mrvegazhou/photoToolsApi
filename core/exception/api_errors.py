@@ -14,7 +14,6 @@ def error_token(error):
 
 @app.errorhandler(APIException)
 def catch_error(error):
-	print("ssssss")
     file, line, func, _ = get_error_info()
     app.logger.error('代码错误：{0}, {1}({2})[{3}]'.format(str(error), file, line, func))
     return send(error.code, error.msg, error.data)
@@ -23,3 +22,8 @@ def catch_error(error):
 @app.errorhandler(404)
 def handle_404_error(error):
     return send(404, CODE[404])
+
+
+@app.errorhandler(500)
+def handle_500_error(error):
+    return send(500, CODE[500])

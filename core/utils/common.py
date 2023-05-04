@@ -342,7 +342,7 @@ def pagination(current_page, page_size, total):
     total = int(total)
 
     if total == 0:
-        return 0, 0
+        return 0, 0, 0
 
     max_page_num = math.ceil(total / page_size)
 
@@ -355,7 +355,7 @@ def pagination(current_page, page_size, total):
     if current_page == max_page_num:
         end = total
 
-    return start, end
+    return start, end, max_page_num
 
 
 # 判断是否为数字
@@ -430,6 +430,7 @@ def secure_filename(filename: str) -> str:
 
     return filename
 
+
 # 字节转文件大小单位
 def convertFileSize(size_bytes):
    if size_bytes == 0:
@@ -440,8 +441,15 @@ def convertFileSize(size_bytes):
    s = round(size_bytes / p, 2)
    return "%s %s" % (s, size_name[i])
 
+
 def run_cmd(command):
     try:
         return call(command, shell=True)
     except KeyboardInterrupt:
             raise Exception("Process interrupted")
+
+
+# 检查目录剩余存储空间
+def get_free_space_mb(folder):
+    st = os.statvfs(folder)
+    return st.f_bavail * st.f_frsize / 1024 // 1024

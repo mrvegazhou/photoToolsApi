@@ -116,7 +116,7 @@ class AppUser(Base):
                       begin_date=None,
                       end_date=None):
         total = AppUser.get_app_users_total(username, phone, email, description, status, begin_date, end_date)
-        start, end = utils['common'].pagination(page_num, page_size, total)
+        start, end, _ = utils['common'].pagination(page_num, page_size, total)
         exp = AppUser.query.filter(AppUser.delete_time == None)
         if status:
             exp = exp.filter(AppUser.status == status)

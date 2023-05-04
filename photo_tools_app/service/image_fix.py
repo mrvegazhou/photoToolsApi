@@ -11,16 +11,16 @@ from ppgan.apps import DeOldifyPredictor
 from photo_tools_app.__init__ import CORE_DIR, utils
 
 
-class FixImg:
+class FixImgService:
 
     @staticmethod
-    def restoreOldPhoto(img):
+    def restore_old_photo(img):
         deoldify = DeOldifyPredictor(output='output', weight_path=CORE_DIR+"/extensions/paddleGan/models/DeOldify_stable.pdparams")
         result = deoldify.run_image(img)
         result.save("output/DeOldify/test.png")
 
     @staticmethod
-    def restoreOldPhotoByMicrosoft(imgname, ext, save_path, inputs, outputs):
+    def restore_old_photo_by_microsoft(imgname, ext, save_path, inputs, outputs):
         common = utils['common']
         retval = os.getcwd()
         service_path = os.path.normpath(os.path.join(CORE_DIR, "../Bringing-Old-Photos-Back-to-Life"))
@@ -39,6 +39,7 @@ class FixImg:
             # 原图移动到restored文件夹内
             shutil.copyfile(os.path.join(inputs, imgname+"."+ext), os.path.join(dst_path, imgname+"_old."+ext))
             shutil.move(f_src, f_dst)
+            # input和output文件夹都存在 upload / 文件名命名的目录 / (input/output) / (final_output/ )
             shutil.rmtree(os.path.join(save_path, imgname))
             return True
         return False
@@ -49,4 +50,3 @@ if __name__ == "__main__":
 
     image = '/Users/vega/workspace/codes/py_space/working/photo-tools-api/photo_tools_app/service/shuiyin.png'
     image2 = '/Users/vega/workspace/codes/py_space/working/photo-tools-api/photo_tools_app/service/rrrr.png'
-    FixImg.addWatermarkByLogo(image, image2)

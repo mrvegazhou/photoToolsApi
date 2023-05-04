@@ -47,6 +47,7 @@ class StaticPages(object):
 
         dir1, dir2 = getUploadDirs(name)
         imgPath = '{}{}{}{}{}{}{}'.format(upload_dir, cur_sep, dir1, cur_sep, dir2, cur_sep, fileName)
+        # 文件的全路径,  文件名, 后缀名
         return imgPath, name, ext
 
 

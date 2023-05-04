@@ -83,7 +83,7 @@ class AdminUser(Base):
     @staticmethod
     def get_users(page_num=1, page_size=Constant.ADMIN_PAGE_SIZE.value, username=None, phone=None, email=None, status=None):
         total = AdminUser.get_users_total(username, phone, email, status)
-        start, end = utils['common'].pagination(page_num, page_size, total)
+        start, end, _ = utils['common'].pagination(page_num, page_size, total)
         exp = AdminUser.query.filter(AdminUser.delete_time==None)
         if status:
             exp = exp.filter(AdminUser.status == status)

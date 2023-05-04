@@ -76,6 +76,7 @@ class AdminRoleMenuPower(Base):
         tbl_name = '{schema}.{table}'.format(schema=schema, table=name)
         sql_insert = []
         sql_insert_dict = {}
+        sql_insert_list = []
         i = 0
         for item in params:
             keys = item.keys()
@@ -91,11 +92,12 @@ class AdminRoleMenuPower(Base):
             sql_insert_dict[role_key] = item['role_id']
             sql_insert_dict[menu_key] = item['menu_id']
             sql_insert_dict[power_key] = item['power_id']
+            sql_insert_list.append(sql_insert_dict)
 
         sql_insert = ','.join(sql_insert)
         result = db.session.connection().execute(db.text(
             'insert into {tbl_name} (role_id, menu_id, power_id) values {sql_str} ON conflict(role_id, menu_id, power_id) DO UPDATE SET create_time=NOW()'
-                .format(tbl_name=tbl_name, sql_str=sql_insert)), **sql_insert_dict)
+                .format(tbl_name=tbl_name, sql_str=sql_insert)), sql_insert_list)
         db.session.commit()
         return result.rowcount
 

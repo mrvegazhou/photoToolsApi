@@ -3,8 +3,10 @@ import json
 from datetime import datetime, timezone
 from photo_tools_app.model.base import Base
 from photo_tools_app.__init__ import db, utils, func
+from sqlalchemy.exc import SQLAlchemyError
 from photo_tools_app.config.constant import Constant
 from sqlalchemy import or_
+from photo_tools_app.exception.api_exception import DatabaseError
 
 
 class AppImgs(Base):
@@ -14,6 +16,7 @@ class AppImgs(Base):
     uuid = db.Column(db.Integer, primary_key=True, autoincrement=True, unique=True)
     tags = db.Column(db.String(), nullable=False, server_default="", comment="标签")
     url = db.Column(db.String(), nullable=False, server_default="", comment="地址")
+    base_dir = db.Column(db.String(), nullable=False, server_default="", comment="存储根目录")
     type = db.Column(db.Integer, nullable=False, server_default="", comment="类型 1.feedback 2.画板 ")
     create_time = db.Column('create_time', db.TIMESTAMP, comment="创建时间", server_default=func.now())
     update_time = db.Column('update_time', db.TIMESTAMP, comment="修改时间")
@@ -23,6 +26,7 @@ class AppImgs(Base):
             "uuid": self.uuid,
             "tags": self.tags,
             "url": self.url,
+            "base_dir": self.base_dir,
             "type": self.type,
             "create_time": self.create_time,
             "update_time": self.update_time
@@ -49,7 +53,7 @@ class AppImgs(Base):
         return json.dumps(obj, cls=utils["common"].ComplexEncoder)
 
     def keys(self):
-        return ('uuid', 'tags', 'url', 'type', 'create_time')
+        return ('uuid', 'tags', 'url', 'base_dir', 'type', 'create_time')
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -95,7 +99,7 @@ class AppImgs(Base):
                              begin_date=None,
                              end_date=None):
         total = AppImgs.get_app_imgs_total(tags, url, type, begin_date, end_date)
-        start, end = utils['common'].pagination(page_num, page_size, total)
+        start, end, _ = utils['common'].pagination(page_num, page_size, total)
         exp = AppImgs.query
         if tags:
             tags_list = tags.split()
@@ -139,41 +143,52 @@ class AppImgs(Base):
     def save_imgs(obj):
         db.session.add(obj)
         db.session.commit()
-        return obj.uuid
+        uuid = obj.uuid
+        db.session.close()
+        return uuid
 
     @staticmethod
     def batch_save_imgs(params):
-        name = AppImgs.__tablename__
-        schema = AppImgs.__table_args__
-        schema = schema['schema']
-        tbl_name = '{schema}.{table}'.format(schema=schema, table=name)
-        sql_insert = []
-        sql_insert_dict = {}
-        i = 0
-        for item in params:
-            if not item['url']:
-                return
-            i = i + 1
-            url_key = 'url' + str(i)
-            type_key = 'type' + str(i)
-            tags_key = 'tags' + str(i)
-            sql_insert.append(
-                "(:{url}, :{type}, :{tags})".format(url=url_key, type=type_key, tags=tags_key))
-            sql_insert_dict[url_key] = item['url']
-            sql_insert_dict[type_key] = AppImgs.get_type(item['type']) or 0
-            sql_insert_dict[tags_key] = item['tags'] or ''
+        try:
+            name = AppImgs.__tablename__
+            schema = AppImgs.__table_args__
+            schema = schema['schema']
+            tbl_name = '{schema}.{table}'.format(schema=schema, table=name)
+            sql_insert = []
+            sql_insert_dict = {}
+            sql_insert_list = []
+            i = 0
+            for item in params:
+                if not item['url']:
+                    return
+                i = i + 1
+                url_key = 'url' + str(i)
+                type_key = 'type' + str(i)
+                tags_key = 'tags' + str(i)
+                base_dir_key = 'base_dir' + str(i)
+                sql_insert.append(
+                    "(:{url}, :{type}, :{tags}, :{base_dir})".format(url=url_key, type=type_key, tags=tags_key, base_dir=base_dir_key))
+                sql_insert_dict[url_key] = item['url']
+                sql_insert_dict[type_key] = AppImgs.get_type(item['type']) or 0
+                sql_insert_dict[tags_key] = item['tags'] or ''
+                sql_insert_dict[base_dir_key] = item['base_dir']
+                sql_insert_list.append(sql_insert_dict)
 
-        result = db.session.connection().execute(db.text(
-            'insert into {tbl_name} (url, type, tags) values {sql_str} RETURNING uuid'
-                .format(tbl_name=tbl_name, sql_str=','.join(sql_insert))), **sql_insert_dict)
-        db.session.commit()
-        return result.fetchall()
+            result = db.session.connection().execute(db.text(
+                'insert into {tbl_name} (url, type, tags, base_dir) values {sql_str} RETURNING uuid'
+                    .format(tbl_name=tbl_name, sql_str=','.join(sql_insert))), sql_insert_list)
+            db.session.commit()
+        except SQLAlchemyError as e:
+            db.session.rollback()
+        finally:
+            db.session.close()
+        return result.fetchall() if result else None
 
     @staticmethod
     def update_app_img(uuid, **args):
         info = {'update_time': datetime.now(tz=timezone.utc)}
         for key, val in args.items():
-            if hasattr(AppImgs, key) and key != 'uuid' and key != 'create_time':
+            if hasattr(AppImgs, key) and key != 'uuid' and key != 'create_time' and val:
                 info[key] = val
         num_rows_updated = AppImgs.query.filter_by(uuid=uuid).update(info)
         db.session.commit()

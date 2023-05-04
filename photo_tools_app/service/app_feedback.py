@@ -27,11 +27,12 @@ class AppFeedbackService(object):
             if 'imgs' in info and len(info['imgs'])!=0:
                 res_list = []
                 for img in info['imgs']:
-                    res = AppImgsService.save_app_img_file_info(img, type='base64')
+                    res, file_dir = AppImgsService.save_app_img_file_info(img, type='base64')
                     res_list.append({
                         'type': 1,
                         'tags': 'feedback',
-                        'url': res
+                        'url': res,
+                        'base_dir': file_dir
                     })
                 imgs_ids = AppImgsService.save_app_imgs(res_list)
                 imgs_ids_str = ','.join([str(img_id[0]) for img_id in imgs_ids])

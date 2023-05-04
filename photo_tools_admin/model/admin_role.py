@@ -54,7 +54,7 @@ class AdminRole(Base):
     @staticmethod
     def get_roles_by_condition(page_num=1, page_size=Constant.ADMIN_PAGE_SIZE.value, **kargs):
         total = AdminRole.get_roles_total_by_condition(**kargs)
-        start, end = utils['common'].pagination(page_num, page_size, total)
+        start, end, _ = utils['common'].pagination(page_num, page_size, total)
         exp = AdminRole.query
         exp = exp.filter(AdminRole.delete_time == None)
         new_kwargs = {}

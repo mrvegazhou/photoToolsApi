@@ -15,7 +15,7 @@ def AppFeedback():
     parser.add_argument('contact', type=str, help="联系方式", default='', location='json')
     parser.add_argument('imgs', type=str, action='append', help="附件", default='', location='json')
     entry = parser.parse_args(http_error_code=50003)
-    user_id = g.uuid or 111
+    user_id = g.uid or 111
     info = {
         'type': entry.get('type'),
         'content': entry.get('content'),
