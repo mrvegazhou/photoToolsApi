@@ -205,7 +205,7 @@ class RedisCache(BaseCache):
         return self._client.lpush(self._key(key), *l)
 
     def rpop(self, key):
-        return self._client.lpush(self._key(key))
+        return self._client.lpop(self._key(key))
 
     def lrange(self, key, start, num):
         return self._client.lrange(self._key(key), start, num)

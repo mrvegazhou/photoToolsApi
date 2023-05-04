@@ -52,12 +52,12 @@ STATE_RUNNING = 1
 STATE_PAUSED = 2
 
 class DistributedBackgroundScheduler(BackgroundScheduler):
+
     _redis_client = None
     _lock_timeoout = None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # self.redis_client = redis_client
-        # self.lock_timeoout = lock_timeoout
 
     @property
     def redis_client(self):

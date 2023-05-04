@@ -12,10 +12,10 @@ class AppScheduledTasks(Base):
     uuid = db.Column(db.Integer, primary_key=True, autoincrement=True, unique=True)
     user_id = db.Column(db.Integer, nullable=False, server_default="", comment="用户id")
     type = db.Column(db.Integer, nullable=False, server_default="", comment="类型 1.图片处理 ")
-    status = db.Column(db.Integer, nullable=False, server_default="", comment="1:正常;2:处理异常;")
+    status = db.Column(db.Integer, nullable=False, server_default="", comment="1:正常;2:处理异常;3:无法处理")
     title = db.Column(db.String(), nullable=False, server_default="", comment="执行标题")
     content = db.Column(db.String(), nullable=False, server_default="", comment="执行内容")
-    expire_age = db.Column(db.Integer, nullable=False, server_default=0, comment="修改时间")
+    expire_age = db.Column(db.Integer, nullable=False, server_default="0", comment="过期时间段")
     create_time = db.Column('create_time', db.TIMESTAMP, comment="创建时间", server_default=func.now())
     update_time = db.Column('update_time', db.TIMESTAMP, comment="修改时间")
 

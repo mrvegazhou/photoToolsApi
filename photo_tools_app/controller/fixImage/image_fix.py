@@ -80,7 +80,7 @@ def ImageFix():
         del ios
 
         if g.uid:
-            val = "|".join([g.uid, new_file_name, ext, file_dir, file_input_file_path, file_output_dir_path])
+            val = "|".join([str(g.uid), new_file_name, ext, file_dir, file_input_file_path, file_output_dir_path])
             res = cache.lpush(Constant.R_FIX_OLD_IMG.value, [val])
             if not res:
                 if os.path.exists(file_dir):
@@ -92,11 +92,12 @@ def ImageFix():
                 # 查看定时任务的状态
                 job_id = Constant.FIX_IMG_JOB_ID.value
                 job_status = scheduler.get_job(job_id)
+                print(job_status, '---job_status--')
                 if job_status==None:
                     scheduler_obj = scheduler.scheduler
                     scheduler_obj.redis_client = cache.get_client()
                     scheduler_obj.lock_timeoout = 1800
-                    scheduler.add_job(func=fix_img_scheduler_task, id=job_id, trigger="interval", seconds=5, replace_existing=True)
+                    scheduler.add_job(func=fix_img_scheduler_task, args=(job_id, ), id=job_id, trigger="interval", seconds=5, jobstore='redis')
 
                 return send(200, data=msg)
         else:

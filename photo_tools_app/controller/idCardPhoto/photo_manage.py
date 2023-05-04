@@ -67,12 +67,13 @@ def faceImgMatting():
 
         # 异步删除图片
         name = sys._getframe().f_code.co_name
+        type_dict = AppScheduledTasksService.get_type_content(name)
         args = {
-            'type': AppScheduledTasksService.get_type(name),
+            'type': type_dict[0],
             'content': [file_dir + cur_sep + new_filename,  file_dir + cur_sep + new_file_name + '_rgba.png'],
             'status': 1,
             'user_id': g.uid or 0,
-            'name': AppScheduledTasksService.get_content(name),
+            'name': type_dict[1],
         }
         executor.submit(AppScheduledTasksService.save_scheduled_task_info, args)
 
@@ -120,11 +121,12 @@ def imageCompose():
 
     # 异步删除图片
     name = sys._getframe().f_code.co_name
+    type_dict = AppScheduledTasksService.get_type_content(name)
     args = {
         'type': 1,
         'content': [imgPath, c_png],
         'status': 1,
-        'name': AppScheduledTasksService.get_content(name),
+        'name': type_dict[1],
     }
     executor.submit(AppScheduledTasksService.save_scheduled_task_info, args)
 

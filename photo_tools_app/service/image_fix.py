@@ -1,6 +1,5 @@
 # _*_ coding: utf-8 _*_
-
-import os
+import subprocess
 import shutil
 import sys, os, inspect
 PACKAGE_PARENT = '../..'
@@ -21,12 +20,26 @@ class FixImgService:
 
     @staticmethod
     def restore_old_photo_by_microsoft(imgname, ext, save_path, inputs, outputs):
-        common = utils['common']
+        # common = utils['common']
         retval = os.getcwd()
         service_path = os.path.normpath(os.path.join(CORE_DIR, "../Bringing-Old-Photos-Back-to-Life"))
         os.chdir(service_path)
-        str_cmd = "python run.py --input_folder {} --output_folder {} --GPU -1 --with_scratch --HR".format(inputs, outputs)
-        common.run_cmd(str_cmd)
+        args = ['python', 'run.py', '--input_folder', inputs, '--output_folder', outputs, '--GPU', '-1', '--with_scratch', '--HR']
+        # str_cmd = "python run.py --input_folder {} --output_folder {} --GPU -1 --with_scratch --HR".format(inputs, outputs)
+        # common.run_cmd(str_cmd)
+        proc = subprocess.Popen(
+            args,
+            shell=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        # print("poll: %s" % proc.poll())
+        # result = [x.decode("utf8").strip() for x in proc.stdout.readlines()]
+        # print(result)
+        while proc.poll() is None:
+            continue
+        # out, err = proc.communicate()
+        # print(out.decode())
         os.chdir(retval)
         sep = os.path.sep
         final_path = "{}final_output{}".format(outputs, sep)

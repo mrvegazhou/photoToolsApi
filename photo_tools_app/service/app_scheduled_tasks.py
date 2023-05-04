@@ -18,23 +18,11 @@ class AppScheduledTasksService(object):
         return AppScheduledTasksModel.save_scheduled_task(task)
 
     @staticmethod
-    def get_content(name):
-        contents = {
-            'faceImgMatting': '删除人像抠图后的图片',
-            'imageCompose': '删除人像和背景合成图片',
-            'input_full_file_path': '修复老照片',
-        }
-        if name in contents:
-            return contents[name]
-        else:
-            return ''
-
-    @staticmethod
     def get_type_content(name):
         types = {
-            'faceImgMatting': [1],
-            'imageCompose': [2],
-            'input_full_file_path': 3,
+            'faceImgMatting': [1, '删除人像抠图后的图片', 1800],
+            'imageCompose': [2, '删除人像和背景合成图片', 1800],
+            'input_full_file_path': [3, '修复老照片', 1800],
         }
         if name in types:
             return types[name]
