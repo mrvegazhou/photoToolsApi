@@ -28,6 +28,8 @@ class Constant(Enum):
     R_FIX_OLD_IMG = 'fix_old_img'
 
     # 定时任务id
-    FIX_IMG_JOB_ID = 'FIX_IMG_JOB_ID'
+    FIX_IMG_JOB_ID = 'fix_img_scheduler_task'
+    OP_FIX_IMG_JOB_ID = 'op_fix_img_scheduler_task'
+
 
 

@@ -50,7 +50,6 @@ class StaticPages(object):
         # 文件的全路径,  文件名, 后缀名
         return imgPath, name, ext
 
-
     @staticmethod
     def getStaticFile(fileName, type=''):
         if not type:
@@ -60,3 +59,12 @@ class StaticPages(object):
         img_path = '{}{}static{}{}{}{}'.format(upload_dir, cur_sep, cur_sep, type, cur_sep, fileName)
         return img_path
 
+    @staticmethod
+    def get_static_img_url_by_file_path(file_path):
+        if not file_path:
+            return None
+        file_path_arr = file_path.rsplit('/', 1)
+        if len(file_path_arr)>1:
+            return file_path_arr[1]
+        else:
+            return None

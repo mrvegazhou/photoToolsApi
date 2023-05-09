@@ -32,16 +32,6 @@ class AppScheduledTasks(Base):
             "update_time": self.update_time
         }
 
-    @staticmethod
-    def get_type(name):
-        types = {
-            Constant.FIX_IMG_JOB_ID.value: 1,
-        }
-        if name in types:
-            return types[name]
-        else:
-            return None
-
     def __repr__(self):
         obj = AppScheduledTasks.get_keys(self)
         return json.dumps(obj, cls=utils["common"].ComplexEncoder)
@@ -72,6 +62,24 @@ class AppScheduledTasks(Base):
     def get_scheduled_task_list_total(type=None):
         if not type:
             return None
-        exp = db.session.query(db.func.count(AppScheduledTasks.uuid))
-        exp = exp.filter(AppScheduledTasks.type == type)
-        return exp.scalar()
+        try:
+            exp = db.session.query(db.func.count(AppScheduledTasks.uuid))
+            exp = exp.filter(AppScheduledTasks.type == type)
+            return exp.scalar()
+        except Exception as ex:
+            print(str(ex))
+
+    @staticmethod
+    def del_scheduled_task_info(uuid):
+        deleted_objects = AppScheduledTasks.__table__.delete().where(AppScheduledTasks.uuid == uuid)
+        result = db.session.execute(deleted_objects)
+        db.session.commit()
+        db.session.close()
+        return result.rowcount
+
+    @staticmethod
+    def get_scheduled_task_list_by_user(user_id, type):
+        if not type or not user_id:
+            return None
+        exp = AppScheduledTasks.query.filter(AppScheduledTasks.type == type).filter(AppScheduledTasks.user_id == user_id)
+        return exp.all()

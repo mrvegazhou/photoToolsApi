@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
-import os, shutil
+import os, shutil, datetime
 from werkzeug.datastructures import FileStorage
 
 from photo_tools_app.__init__ import send, reqparse, Redprint, CODE, utils, g, scheduler, app, Logger
 from photo_tools_app.utils.common_util import allowedFile
 from photo_tools_app.utils.jwt_required import jwt_required
 from photo_tools_app.service.image_upload import UploadImg
+from photo_tools_app.service.static_pages import StaticPages
 from photo_tools_app.service.image_scan import ScanImage
 from core.cache.redis import RedisCache
 from photo_tools_app.config.constant import Constant
-from photo_tools_app.crontab.scheduler_tasks import fix_img_scheduler_task
+from photo_tools_app.service.app_scheduled_tasks import AppScheduledTasksService
+from photo_tools_app.crontab.scheduler_tasks import fix_img_scheduler_task, op_fix_img_scheduler_task
 
 
 cache = RedisCache(app=app)
@@ -24,12 +26,22 @@ api = Redprint(name='fix')
 @api.route('/restore', methods=["POST"])
 @jwt_required
 def ImageFix():
+    job_id = Constant.OP_FIX_IMG_JOB_ID.value
+    scheduler_obj = scheduler.scheduler
+    scheduler_obj.redis_client = cache.get_client()
+    scheduler_obj.lock_timeoout = 1800
+    scheduler.add_job(func=op_fix_img_scheduler_task, args=(job_id,), id=job_id, trigger="interval", seconds=5,
+                      jobstore='redis')
+    return
+
     parser = reqparse.RequestParser()
     parser.add_argument('imgFile', required=True, type=FileStorage, location='files', help="图片错误")
     parser.add_argument('openid', type=str, required=True, help="用户标识错误", location='form')
     entry = parser.parse_args(http_error_code=50003)
 
-    # openid = entry.get('openid')
+    openid = entry.get('openid')
+    if not openid or not g.uid:
+        return send(10001, data=CODE[10001])
 
     img_file = entry.get('imgFile')
 
@@ -79,35 +91,56 @@ def ImageFix():
 
         del ios
 
-        if g.uid:
-            val = "|".join([str(g.uid), new_file_name, ext, file_dir, file_input_file_path, file_output_dir_path])
-            res = cache.lpush(Constant.R_FIX_OLD_IMG.value, [val])
-            if not res:
-                if os.path.exists(file_dir):
-                    shutil.rmtree(file_dir, ignore_errors=False, onerror=None)
-                return send(30008, CODE[30008])
-            else:
-                r_len = cache.llen(Constant.R_FIX_OLD_IMG.value)
-                msg = '由于修复需消耗时间,请耐心等待.' if r_len>0 else '服务器还有{}张图片需要处理，请耐心等待.'.format(str(r_len))
-                # 查看定时任务的状态
-                job_id = Constant.FIX_IMG_JOB_ID.value
-                job_status = scheduler.get_job(job_id)
-                print(job_status, '---job_status--')
-                if job_status==None:
-                    scheduler_obj = scheduler.scheduler
-                    scheduler_obj.redis_client = cache.get_client()
-                    scheduler_obj.lock_timeoout = 1800
-                    scheduler.add_job(func=fix_img_scheduler_task, args=(job_id, ), id=job_id, trigger="interval", seconds=5, jobstore='redis')
-
-                return send(200, data=msg)
-        else:
+        val = "|".join([str(g.uid), new_file_name, ext, file_dir, file_input_file_path, file_output_dir_path])
+        res = cache.lpush(Constant.R_FIX_OLD_IMG.value, [val])
+        if not res:
             if os.path.exists(file_dir):
                 shutil.rmtree(file_dir, ignore_errors=False, onerror=None)
-            return send(10001, data=CODE[10001])
+            return send(30008, CODE[30008])
+        else:
+            # redis
+            r_len = cache.llen(Constant.R_FIX_OLD_IMG.value)
+            msg = '由于修复需消耗时间,请耐心等待.' if r_len>0 else '服务器还有{}张图片需要处理，请耐心等待.'.format(str(r_len))
+            # 查看定时任务的状态
+            job_id = Constant.FIX_IMG_JOB_ID.value
+            job_status = scheduler.get_job(job_id)
+            if job_status==None:
+                scheduler_obj = scheduler.scheduler
+                scheduler_obj.redis_client = cache.get_client()
+                scheduler_obj.lock_timeoout = 1800
+                scheduler.add_job(func=fix_img_scheduler_task, args=(job_id, ), id=job_id, trigger="interval", seconds=5, jobstore='redis')
 
+            return send(200, data=msg)
     else:
         del ios
         return send(80005, data=CODE[80005])
+
+
+@api.route('/list', methods=["POST", "GET"])
+@jwt_required
+def ImageFixList():
+    parser = reqparse.RequestParser()
+    parser.add_argument('openid', type=str, required=True, help="用户标识错误", location='json')
+    entry = parser.parse_args(http_error_code=50003)
+    openid = entry.get('openid')
+    if g.uid and openid:
+        op_type = AppScheduledTasksService.get_type_content(Constant.FIX_IMG_JOB_ID.value)
+        if not op_type:
+            return send(500, data=CODE[500])
+        img_list = AppScheduledTasksService.get_scheduled_task_list_by_user(g.uid, op_type[0])
+        res_list = []
+        for img in img_list:
+            new_img = {}
+            new_img['status'] = img.status
+            new_img['expire_age'] = (datetime.datetime.now()+datetime.timedelta(minutes=img.expire_age//60)).strftime("%Y-%m-%d %H:%M:%S")
+            urls = img.content
+            urls = urls.split(',')
+            new_img['old_img'] = StaticPages.get_static_img_url_by_file_path(urls[0])
+            new_img['new_img'] = StaticPages.get_static_img_url_by_file_path(urls[1]) if len(urls)==2 and img.status!=3 else "无法修复"
+            res_list.append(new_img)
+        return send(200, data=res_list)
+    else:
+        return send(10001, data=CODE[10001])
 
 
 @api.route('/scan', methods=["POST"])

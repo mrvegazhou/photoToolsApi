@@ -199,4 +199,5 @@ class AppImgs(Base):
         deleted_objects = AppImgs.__table__.delete().where(AppImgs.uuid == uuid)
         result = db.session.execute(deleted_objects)
         db.session.commit()
+        db.session.close()
         return result.rowcount
