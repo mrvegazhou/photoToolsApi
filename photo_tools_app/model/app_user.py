@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 from datetime import datetime, timezone
+from sqlalchemy import BigInteger, String, SmallInteger
 from photo_tools_app.model.base import Base
 from photo_tools_app.__init__ import db, utils, func
 from photo_tools_app.config.constant import Constant
@@ -11,17 +12,17 @@ class AppUser(Base):
     __tablename__ = 'app_user'
     __table_args__ = {'extend_existing': True, 'schema': 'app'}
 
-    uuid = db.Column(db.Integer, primary_key=True, autoincrement=True, unique=True)  # id 整型，主键，自增，唯一
-    username = db.Column(db.String(255), unique=True, nullable=False, server_default="", comment="用户名")
-    phone = db.Column(db.String(50), nullable=False, server_default="", comment="手机号码")
-    email = db.Column(db.String(50), nullable=False, server_default="", comment="email")
-    description = db.Column(db.String(255), server_default="", comment="描述")
-    type = db.Column(db.SMALLINT, default=1, server_default='1', comment="1 wechat 2 其他")
-    openid = db.Column(db.String(50), default=1, server_default='', comment="wechat openid")
-    status = db.Column(db.SMALLINT, default=1, server_default='1', comment="1 正常 0 禁止")
-    create_time = db.Column(db.TIMESTAMP, comment="创建时间", server_default=func.now())
-    update_time = db.Column(db.TIMESTAMP, comment="修改时间")
-    delete_time = db.Column(db.TIMESTAMP, comment="删除时间")
+    uuid = db.Column(BigInteger, primary_key=True, autoincrement=True, unique=True)  # id 整型，主键，自增，唯一
+    username = db.Column(String, unique=True, nullable=False, server_default="", comment="用户名")
+    phone = db.Column(String, nullable=False, server_default="", comment="手机号码")
+    email = db.Column(String, nullable=False, server_default="", comment="email")
+    description = db.Column(String, server_default="", comment="描述")
+    type = db.Column(SmallInteger, default=1, server_default='1', comment="1 wechat 2 其他")
+    openid = db.Column(String, default=1, server_default='', comment="wechat openid")
+    status = db.Column(SmallInteger, default=1, server_default='1', comment="1 正常 0 禁止")
+    create_time = db.Column(db.DateTime(timezone=True), comment="创建时间", server_default=func.now(), default=datetime.now)
+    update_time = db.Column(db.DateTime(timezone=True), comment="修改时间", onupdate=datetime.utcnow)
+    delete_time = db.Column(db.DateTime(timezone=True), comment="删除时间")
 
     def get_keys(self):
         return {
@@ -62,6 +63,10 @@ class AppUser(Base):
         return AppUser.query.filter_by(uuid=uuid).first()
 
     @staticmethod
+    def get_user_list_by_uuids(uuids):
+        return AppUser.query.filter(AppUser.uuid.in_(uuids)).order_by(AppUser.uuid.asc()).all()
+
+    @staticmethod
     def get_app_user_info_by_attr(attrs, cols=None):
         name = AppUser.__tablename__
         schema = AppUser.__table_args__
@@ -92,6 +97,7 @@ class AppUser(Base):
         num_rows_updated = AppUser.query.filter_by(uuid=uuid).update(
             dict(status=status))
         db.session.commit()
+        db.session.close()
         return num_rows_updated
 
     @staticmethod

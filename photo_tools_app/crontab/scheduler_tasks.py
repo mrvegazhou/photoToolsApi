@@ -32,6 +32,7 @@ def op_fix_img_scheduler_task(job_id=None):
         start, end, _ = utils['common'].pagination(page_num, page_size, total)
         with app.app_context():
             tasks_list = AppScheduledTasksModel.get_scheduled_task_list_by_type(page_size=page_size, start=start, type=type_dict[0])
+        if tasks_list:
             for task in tasks_list:
                 try:
                     create_time_struct = task['create_time']
@@ -39,17 +40,19 @@ def op_fix_img_scheduler_task(job_id=None):
                     now_struct = datetime.today()
                     dela = (now_struct - create_time_struct).total_seconds()
                     dela = math.ceil(dela)
-                    if dela<=0:
+                    if dela>=0:
                         if dela>=task['expire_age']:
                             # 老照片修复类型=3
                             if task['status'] and task['status']!=3:
-                                if task['url']:
-                                    urls = task['url']
+                                if task['content']:
+                                    urls = task['content']
                                     urls = urls.split(",")
                                     for url in urls:
                                         if os.path.exists(url):
                                             os.remove(url)
-                            AppScheduledTasksModel.del_scheduled_task_info(task['uuid'])
+                            with app.app_context():
+                                del_res = AppScheduledTasksModel.del_scheduled_task_info(task['uuid'])
+                                print(del_res, "----del_res----")
                 except Exception as e:
                     print("error:", str(e))
 

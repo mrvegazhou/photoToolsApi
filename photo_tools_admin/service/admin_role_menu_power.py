@@ -65,16 +65,17 @@ class AdminRoleMenuPowerService:
                 role_menu_powers_dict.setdefault(item.role_id, [{"menu_id": item.menu_id, "power_id": item.power_id}])
         res = []
         for role in roles:
-            role_menu_powers_by_role = role_menu_powers_dict[role.uuid]
-            role = dict(role)
-            role['menu_powers'] = []
-            lstg = groupby(role_menu_powers_by_role, itemgetter('menu_id'))
-            for key, group in lstg:
-                powers = []
-                for g in group:
-                    powers.append(g['power_id'])
-                role['menu_powers'].append({'menu_id': key, 'powers': powers})
-            res.append(role)
+            if role.uuid in role_menu_powers_dict:
+                role_menu_powers_by_role = role_menu_powers_dict[role.uuid]
+                role = dict(role)
+                role['menu_powers'] = []
+                lstg = groupby(role_menu_powers_by_role, itemgetter('menu_id'))
+                for key, group in lstg:
+                    powers = []
+                    for g in group:
+                        powers.append(g['power_id'])
+                    role['menu_powers'].append({'menu_id': key, 'powers': powers})
+                res.append(role)
         return res
 
     @staticmethod

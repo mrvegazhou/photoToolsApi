@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 from datetime import datetime, timezone
+from sqlalchemy import BigInteger, String, SmallInteger
 from photo_tools_app.model.base import Base
 from photo_tools_app.__init__ import db, utils, func
 from sqlalchemy.exc import SQLAlchemyError
@@ -13,13 +14,13 @@ class AppImgs(Base):
     __tablename__ = 'app_imgs'
     __table_args__ = {'extend_existing': True, 'schema': 'app'}
 
-    uuid = db.Column(db.Integer, primary_key=True, autoincrement=True, unique=True)
-    tags = db.Column(db.String(), nullable=False, server_default="", comment="标签")
-    url = db.Column(db.String(), nullable=False, server_default="", comment="地址")
-    base_dir = db.Column(db.String(), nullable=False, server_default="", comment="存储根目录")
-    type = db.Column(db.Integer, nullable=False, server_default="", comment="类型 1.feedback 2.画板 ")
-    create_time = db.Column('create_time', db.TIMESTAMP, comment="创建时间", server_default=func.now())
-    update_time = db.Column('update_time', db.TIMESTAMP, comment="修改时间")
+    uuid = db.Column(BigInteger, primary_key=True, autoincrement=True, unique=True)
+    tags = db.Column(String, nullable=False, server_default="", comment="标签")
+    url = db.Column(String, nullable=False, server_default="", comment="地址")
+    base_dir = db.Column(String, nullable=False, server_default="", comment="存储根目录")
+    type = db.Column(SmallInteger, nullable=False, server_default="", comment="类型 1.feedback 2.画板 ")
+    create_time = db.Column(db.DateTime(timezone=True), comment="创建时间", server_default=func.now(), default=datetime.now)
+    update_time = db.Column('update_time', db.DateTime(timezone=True), comment="修改时间")
 
     def get_keys(self):
         return {
@@ -98,25 +99,28 @@ class AppImgs(Base):
                              type=None,
                              begin_date=None,
                              end_date=None):
-        total = AppImgs.get_app_imgs_total(tags, url, type, begin_date, end_date)
-        start, end, _ = utils['common'].pagination(page_num, page_size, total)
-        exp = AppImgs.query
-        if tags:
-            tags_list = tags.split()
-            if len(tags_list)==1:
-                exp = exp.filter(AppImgs.tags.ilike('%{keyword}%'.format(keyword=tags)))
-            else:
-                or_ilike_list = []
-                for tag in tags_list:
-                    or_ilike_list.append(AppImgs.tags.ilike('%{keyword}%'.format(keyword=tag)))
-                exp = exp.filter(or_(*or_ilike_list))
-        if url:
-            exp = exp.filter(AppImgs.url == url)
-        if type:
-            exp = exp.filter(AppImgs.type == type)
-        if begin_date and end_date:
-            exp = exp.filter(db.and_(AppImgs.create_time <= begin_date, AppImgs.create_time >= end_date))
-        return exp.order_by(AppImgs.uuid.asc()).offset(start).limit(page_size).all(), total
+        with db.session.no_autoflush:
+            total = AppImgs.get_app_imgs_total(tags, url, type, begin_date, end_date)
+            start, end, _ = utils['common'].pagination(page_num, page_size, total)
+            exp = AppImgs.query
+            if tags:
+                tags = tags.strip()
+                tags_list = tags.split()
+                if len(tags_list)==1:
+                    exp = exp.filter(AppImgs.tags.ilike('%{keyword}%'.format(keyword=tags)))
+                else:
+                    or_ilike_list = []
+                    for tag in tags_list:
+                        or_ilike_list.append(AppImgs.tags.ilike('%{keyword}%'.format(keyword=tag)))
+                    exp = exp.filter(or_(*or_ilike_list))
+            if url:
+                url = url.strip()
+                exp = exp.filter(AppImgs.url == url)
+            if type:
+                exp = exp.filter(AppImgs.type == type)
+            if begin_date and end_date:
+                exp = exp.filter(db.and_(AppImgs.create_time <= begin_date, AppImgs.create_time >= end_date))
+            return exp.order_by(AppImgs.uuid.asc()).offset(start).limit(page_size).all(), total
 
 
     @staticmethod
@@ -138,6 +142,14 @@ class AppImgs(Base):
         if begin_date and end_date:
             exp = exp.filter(db.and_(AppImgs.create_time <= begin_date, AppImgs.create_time >= end_date))
         return exp.scalar()
+
+    @staticmethod
+    def get_app_imgs_by_ids(img_ids):
+        if not isinstance(img_ids, list):
+            return False
+        if not img_ids:
+            return False
+        return AppImgs.query.filter(AppImgs.uuid.in_(img_ids)).all()
 
     @staticmethod
     def save_imgs(obj):

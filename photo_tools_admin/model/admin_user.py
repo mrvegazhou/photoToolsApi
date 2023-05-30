@@ -81,6 +81,10 @@ class AdminUser(Base):
         return AdminUser.query.filter_by(uuid=uuid).first()
 
     @staticmethod
+    def get_admin_user_list_by_uuids(uuids):
+        return AdminUser.query.filter(AdminUser.uuid.in_(uuids)).order_by(AdminUser.uuid.asc()).all()
+
+    @staticmethod
     def get_users(page_num=1, page_size=Constant.ADMIN_PAGE_SIZE.value, username=None, phone=None, email=None, status=None):
         total = AdminUser.get_users_total(username, phone, email, status)
         start, end, _ = utils['common'].pagination(page_num, page_size, total)

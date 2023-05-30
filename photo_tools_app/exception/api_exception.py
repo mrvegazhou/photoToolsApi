@@ -67,6 +67,26 @@ class FeedbackTypeIsNull(APIException):
     msg = CODE[11002]
     http_code = 401
 
+class FeedbackIdIsNull(APIException):
+    res_code = 11005
+    msg = CODE[11005]
+    http_code = 401
+
+class FeedbackReplyContentIsNull(APIException):
+    res_code = 11003
+    msg = CODE[11003]
+    http_code = 401
+
+class FeedbackReplyReplyUserIsNull(APIException):
+    res_code = 11004
+    msg = CODE[11004]
+    http_code = 401
+
+class FeedbackReplyToUserIsNull(APIException):
+    res_code = 11006
+    msg = CODE[11006]
+    http_code = 401
+
 class DatabaseError(APIException):
     res_code = 40007
     msg = CODE[40007]

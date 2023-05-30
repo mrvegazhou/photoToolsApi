@@ -48,3 +48,7 @@ class AppScheduledTasksService(object):
     @staticmethod
     def get_scheduled_task_list_by_user(user_id, type):
         return AppScheduledTasksModel.get_scheduled_task_list_by_user(user_id, type)
+
+    @staticmethod
+    def get_scheduled_task_list_by_user_total(user_id, type):
+        return AppScheduledTasksModel.get_scheduled_task_list_by_user_total(user_id, type)

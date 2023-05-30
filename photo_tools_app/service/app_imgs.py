@@ -78,34 +78,47 @@ class AppImgsService(object):
 
 
 if __name__ == "__main__":
-    import threading, time
+    # import threading, time
+    #
+    #
+    # class Boss(threading.Thread):
+    #     def run(self):
+    #         print("BOSS：今晚大家都要加班。")
+    #         event.set()
+    #         time.sleep(5)
+    #         print("BOSS：可以下班了。")
+    #         event.set()
+    #
+    #
+    # class Worker(threading.Thread):
+    #     def run(self):
+    #         event.wait()
+    #         print("Worker：哎……命苦啊！")
+    #         time.sleep(0.25)
+    #         event.clear()
+    #         event.wait()
+    #         print("Worker：Yeah!")
+    #
+    #
+    # event = threading.Event()
+    # threads = []
+    # for i in range(5):
+    #     threads.append(Worker())
+    # threads.append(Boss())
+    # for t in threads:
+    #     t.start()
+    # for t in threads:
+    #     t.join()
 
+    import paddlehub as hub
 
-    class Boss(threading.Thread):
-        def run(self):
-            print("BOSS：今晚大家都要加班。")
-            event.set()
-            time.sleep(5)
-            print("BOSS：可以下班了。")
-            event.set()
+    porn_detection_lstm = hub.Module(name="porn_detection_lstm")
 
+    test_text = ["我今年50岁了，我很想做爱", "下班找你约炮"]
 
-    class Worker(threading.Thread):
-        def run(self):
-            event.wait()
-            print("Worker：哎……命苦啊！")
-            time.sleep(0.25)
-            event.clear()
-            event.wait()
-            print("Worker：Yeah!")
+    results = porn_detection_lstm.detection(texts=test_text, use_gpu=True, batch_size=1)
 
-
-    event = threading.Event()
-    threads = []
-    for i in range(5):
-        threads.append(Worker())
-    threads.append(Boss())
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    for index, text in enumerate(test_text):
+        results[index]["text"] = text
+    for index, result in enumerate(results):
+        print(results[index])

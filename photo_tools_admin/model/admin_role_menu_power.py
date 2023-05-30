@@ -128,27 +128,35 @@ class AdminRoleMenuPower(Base):
     def transanction_save_roles_menus_powers(roles_menus_powers_dict):
         flag = True
         try:
-            with db.session.begin(subtransactions=True):
-                for role_id, menu_power_ids in roles_menus_powers_dict.items():
-                    if not menu_power_ids:
-                        deleted_by_role_id = AdminRoleMenuPower.__table__.delete().where(AdminRoleMenuPower.role_id == role_id)
-                        db.session.execute(deleted_by_role_id)
-                    for menu_id, power_ids in menu_power_ids.items():
-                        deleted_objects = AdminRoleMenuPower.__table__.delete().where(AdminRoleMenuPower.role_id == role_id).where(AdminRoleMenuPower.menu_id == menu_id)
-                        res = db.session.execute(deleted_objects)
-                        items = []
-                        for power_id in power_ids:
-                            items.append({'role_id': role_id, 'menu_id': menu_id, 'power_id': power_id})
+            # db.session.begin_nested()
+            for role_id, menu_power_ids in roles_menus_powers_dict.items():
+                if not menu_power_ids:
+                    deleted_by_role_id = AdminRoleMenuPower.__table__.delete().where(AdminRoleMenuPower.role_id == role_id)
+                    db.session.execute(deleted_by_role_id)
+                    db.session.commit()
+                for menu_id, power_ids in menu_power_ids.items():
+                    db.session.begin_nested()
+                    deleted_objects = AdminRoleMenuPower.__table__.delete().where(AdminRoleMenuPower.role_id == role_id).where(AdminRoleMenuPower.menu_id == menu_id)
+                    res = db.session.execute(deleted_objects)
+                    db.session.commit()
+                    items = []
+                    for power_id in power_ids:
+                        items.append({'role_id': role_id, 'menu_id': menu_id, 'power_id': power_id})
                         if not items and res.rowcount == 0:
-                            db.session.rollback()
+                            # db.session.rollback()
                             flag = False
-                        db.session.execute(
-                            AdminRoleMenuPower.__table__.insert(),
-                            items
-                        )
+                        else:
+                            db.session.execute(
+                                AdminRoleMenuPower.__table__.insert(),
+                                items
+                            )
+                            db.session.commit()
+            # db.session.commit()
         except Exception as e:
+            print(e, "---e---")
             db.session.rollback()
-        db.session.commit()
+        # db.session.commit()
+        db.session.close()
         return flag
 
     @staticmethod
@@ -167,7 +175,7 @@ class AdminRoleMenuPower(Base):
 
     @staticmethod
     def get_roles_by_menuId_groupBy_roleId(menu_id):
-        sql = select([AdminRoleMenuPower.role_id]).where(AdminRoleMenuPower.menu_id==menu_id).group_by(AdminRoleMenuPower.role_id)
+        sql = select(AdminRoleMenuPower.role_id).where(AdminRoleMenuPower.menu_id==menu_id).group_by(AdminRoleMenuPower.role_id)
         datas = db.session.connection().execute(sql).fetchall()
         if datas:
             return [i[0] for i in datas]
@@ -176,7 +184,7 @@ class AdminRoleMenuPower(Base):
 
     @staticmethod
     def get_roless_by_menuId_groupBy_roleId_menuId(menu_id):
-        sql = select([AdminRoleMenuPower.role_id, AdminRoleMenuPower.menu_id, func.count(AdminRoleMenuPower.power_id)])\
+        sql = select(AdminRoleMenuPower.role_id, AdminRoleMenuPower.menu_id, func.count(AdminRoleMenuPower.power_id).label("count"))\
             .where(and_(AdminRoleMenuPower.menu_id == menu_id, AdminRoleMenuPower.power_id!=0))\
             .group_by(AdminRoleMenuPower.role_id, AdminRoleMenuPower.menu_id)
         return db.session.connection().execute(sql).fetchall()

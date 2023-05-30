@@ -728,4 +728,3 @@ CREATE INDEX idx_url ON app.app_imgs USING btree (url);
 --
 -- PostgreSQL database dump complete
 --
-

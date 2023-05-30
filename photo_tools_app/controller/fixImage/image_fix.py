@@ -43,6 +43,14 @@ def ImageFix():
     if not openid or not g.uid:
         return send(10001, data=CODE[10001])
 
+    # 先判断用户是否已经超过三张要修复的照片
+    op_type = AppScheduledTasksService.get_type_content(Constant.FIX_IMG_JOB_ID.value)
+    if not op_type:
+        return send(500, data=CODE[500])
+    total = AppScheduledTasksService.get_scheduled_task_list_by_user_total(g.uid, op_type[0])
+    if total>=3:
+        return send(80014, data=CODE[80014])
+
     img_file = entry.get('imgFile')
 
     ios = img_file.stream.read()

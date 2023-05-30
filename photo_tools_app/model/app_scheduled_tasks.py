@@ -83,3 +83,11 @@ class AppScheduledTasks(Base):
             return None
         exp = AppScheduledTasks.query.filter(AppScheduledTasks.type == type).filter(AppScheduledTasks.user_id == user_id)
         return exp.all()
+
+    @staticmethod
+    def get_scheduled_task_list_by_user_total(user_id, type):
+        if not type or not user_id:
+            return None
+        exp = db.session.query(db.func.count(AppScheduledTasks.uuid))
+        exp = exp.filter(AppScheduledTasks.type == type).filter(AppScheduledTasks.user_id == user_id)
+        return exp.scalar()
