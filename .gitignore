@@ -5,3 +5,4 @@ core/extensions/paddleDetection/export_model/ppyolo_r50vd_dcn_1x_coco.pdparams
 core/extensions/paddleGan/models/DeOldify_stable.pdparams
 Bringing-Old-Photos-Back-to-Life/
 logs/
+uploads/
