@@ -3,7 +3,7 @@ from photo_tools_app.__init__ import send, reqparse, Redprint, CODE, utils, app
 from photo_tools_app.utils.jwt_required import jwt_required
 from photo_tools_app.service.app_imgs import AppImgsService
 
-api = Redprint(name='search')
+api = Redprint(name='img')
 
 
 @api.route('/list', methods=["POST"])

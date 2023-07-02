@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 import json
 from datetime import datetime, timezone
-from sqlalchemy import BigInteger, String, SmallInteger
+from sqlalchemy import BigInteger, String, SmallInteger, or_
 from photo_tools_app.model.base import Base
 from photo_tools_app.__init__ import db, utils, func
 from sqlalchemy.exc import SQLAlchemyError
 from photo_tools_app.config.constant import Constant
-from sqlalchemy import or_
-from photo_tools_app.exception.api_exception import DatabaseError
 
 
 class AppImgs(Base):

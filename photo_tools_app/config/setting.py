@@ -1,6 +1,7 @@
 # _*_ coding: utf-8 _*_
 
 ALL_RP_API_LIST = {'appImgs.app_imgs': 'appImgs',
+                   'appImgs.app_img_library': 'appImgLib',
                    'wechat.auth': 'wechat',
                    'idCardPhoto.photo_manage': 'idCardPhoto',
                    'fixImage.image_fix': 'fixImage',

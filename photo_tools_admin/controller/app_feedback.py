@@ -25,7 +25,7 @@ def get_feedbacks():
     return send(200, data={"list": list, "total": total})
 
 
-@admin.route('/delFeedback', methods=['POST', 'GET'])
+@admin.route('/delFeedback', methods=['POST'])
 def del_feedback():
     parser = reqparse.RequestParser()
     parser.add_argument('uuid', help='反馈标识出错', type=int, location='json')
@@ -35,7 +35,7 @@ def del_feedback():
     return send(200, data=res)
 
 
-@admin.route('/replyFeedback', methods=['POST', 'GET'])
+@admin.route('/replyFeedback', methods=['POST'])
 @need_login
 def reply_feedback():
     parser = reqparse.RequestParser()

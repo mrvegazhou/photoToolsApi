@@ -7,6 +7,9 @@ class Base(db.Model):
     # 方法就是把__abstract__这个属性设置为True,这个类为基类，不会被创建为表！
     __abstract__ = True
 
+    def __getitem__(self, item):
+        return getattr(self, item)
+
     """根据 code 确定唯一 hash 值（确定分表）"""
     @classmethod
     def get_hash_table_id(cls, code, max_num):
@@ -39,3 +42,12 @@ class Base(db.Model):
         if at_least_one_attached_attribute:
             return f"<{self.__class__.__name__}({','.join(field_strings)})>"
         return f"<{self.__class__.__name__} {id(self)}>"
+
+    @staticmethod
+    def save(obj):
+        db.session.add(obj)
+        db.session.flush()
+        uuid = obj.uuid
+        db.session.commit()
+        db.session.close()
+        return uuid

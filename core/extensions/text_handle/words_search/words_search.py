@@ -73,9 +73,18 @@ class WordsSearch:
         for item in self._skip_list:
             self._skip_bit_array[item] = True
 
+    def init_words(self):
+        fp = open("../resource/sensitive", 'r')
+        word_list = []
+        for line in fp:
+            line = line[0:-1]
+            word_list.append(line)
+        fp.close()
+        return word_list
 
 
-    def set_keywords(self, keywords):
+    def set_keywords(self):
+        keywords = self.init_words()
         self._keywords = keywords
         for i in range(len(keywords)):
             self._indexs.append(i)
@@ -249,11 +258,11 @@ class WordsSearch:
 if __name__ == "__main__":
 
     import time
-    s = "巧克力|力量"
+
     test = "巧αβγδεζηθ \t克力"
     t = time.process_time()
     search = WordsSearch()
-    search.set_keywords(s.split('|'))
+    search.set_keywords()
 
     b = search.contains_any(test)
     print(b, ':result')
@@ -261,5 +270,5 @@ if __name__ == "__main__":
 
     import paddlehub as hub
     porn_detection_lstm = hub.Module(name="porn_detection_lstm")
-    import paddlenlp as ppnlp
-    ppnlp.transformers
+    # import paddlenlp as ppnlp
+    # ppnlp.transformers

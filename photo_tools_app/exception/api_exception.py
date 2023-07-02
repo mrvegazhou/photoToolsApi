@@ -87,6 +87,21 @@ class FeedbackReplyToUserIsNull(APIException):
     msg = CODE[11006]
     http_code = 401
 
+class AdTpyeIsNull(APIException):
+    res_code = 12001
+    msg = CODE[12001]
+    http_code = 401
+
+class AdContentIsNull(APIException):
+    res_code = 12002
+    msg = CODE[12002]
+    http_code = 401
+
+class AdUrlIsNull(APIException):
+    res_code = 12003
+    msg = CODE[12003]
+    http_code = 401
+
 class DatabaseError(APIException):
     res_code = 40007
     msg = CODE[40007]

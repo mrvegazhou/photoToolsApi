@@ -26,13 +26,13 @@ api = Redprint(name='fix')
 @api.route('/restore', methods=["POST"])
 @jwt_required
 def ImageFix():
-    job_id = Constant.OP_FIX_IMG_JOB_ID.value
-    scheduler_obj = scheduler.scheduler
-    scheduler_obj.redis_client = cache.get_client()
-    scheduler_obj.lock_timeoout = 1800
-    scheduler.add_job(func=op_fix_img_scheduler_task, args=(job_id,), id=job_id, trigger="interval", seconds=5,
-                      jobstore='redis')
-    return
+    # job_id = Constant.OP_FIX_IMG_JOB_ID.value
+    # scheduler_obj = scheduler.scheduler
+    # scheduler_obj.redis_client = cache.get_client()
+    # scheduler_obj.lock_timeoout = 1800
+    # scheduler.add_job(func=op_fix_img_scheduler_task, args=(job_id,), id=job_id, trigger="interval", seconds=5,
+    #                   jobstore='redis')
+    # return
 
     parser = reqparse.RequestParser()
     parser.add_argument('imgFile', required=True, type=FileStorage, location='files', help="图片错误")
