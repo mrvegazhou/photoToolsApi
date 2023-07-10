@@ -6,6 +6,9 @@ from photo_tools_admin.__init__ import utils
 from core.exception.api_exception import UserNotFoundError, AddUserError, UserHaveExistedError, UserPasswordError, UserPasswordSameError
 from photo_tools_admin.decorator.oath2_tool import clear_token, create_token
 from photo_tools_admin.service.admin_user_role import AdminUserRoleService
+from photo_tools_admin.service.admin_role_menu_power import AdminRoleMenuPowerService
+from photo_tools_admin.service.admin_menu import AdminMenuService
+from photo_tools_admin.service.admin_menu_power import AdminMenuPowerService
 from photo_tools_admin.config.constant import Constant
 
 class AdminUserService:
@@ -92,6 +95,25 @@ class AdminUserService:
             list[i] = tmp
         return list, total
 
+    #更新角色 菜单 权限 管理员信息
+    @staticmethod
+    def flush_admin_powers(uuid):
+        admin_info = AdminUser.get_userinfo_by_uuid(uuid)
+        tmp_user_info = dict(admin_info)
+        del tmp_user_info['password']
+        tmp = {}
+        tmp['userBasicInfo'] = tmp_user_info
+        roles = AdminUserRoleService.get_user_role_ids(tmp_user_info['uuid'])
+        # 获取角色下的 菜单-权限 列表
+        role_powers, menu_ids, power_ids = AdminRoleMenuPowerService.get_role_powers_list(roles)
+        tmp['roles'] = role_powers
+        # 获取角色下的菜单列表
+        menu_list = AdminMenuService.get_menu_by_ids(menu_ids)
+        tmp['menus'] = menu_list
+        # 获取角色下的权限列表
+        power_list = AdminMenuPowerService.get_menu_powers_by_power_ids(power_ids)
+        tmp['powers'] = power_list
+        return tmp
 
 if __name__ == "__main__":
     list = AdminUserService.register('admin000', 'admin@123', '18600521898', '234@qq.com', '描述')

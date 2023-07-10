@@ -87,12 +87,10 @@ class AppFeedbackRelpy(Base):
         db.session.execute(deleted_by_role_id)
         db.session.flush()
         info = AppFeedbackRelpy.query.filter(AppFeedbackRelpy.uuid == uuid).order_by(AppFeedbackRelpy.create_time.desc()).first()
-        print(info, "---info----")
         cur = db.session.connection().execute(db.text("INSERT INTO app.app_feedback_reply (content, to_user_id, reply_user_id, feedback_id) VALUES ('test', 1, 1, 1) RETURNING app.app_feedback_reply.uuid"))
         db.session.flush()
 
         if cur.lastrowid==0:
-            print(cur.lastrowid, "----cur----")
             db.session.rollback()
 
         db.session.commit()

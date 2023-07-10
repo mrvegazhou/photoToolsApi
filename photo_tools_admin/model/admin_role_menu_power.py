@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
 import sys
 sys.path.append("/Users/vega/workspace/codes/py_space/working/photo-tools-api")
+from sqlalchemy import BigInteger
 from photo_tools_admin.model.base import Base
 from photo_tools_admin.__init__ import db, utils, func
 from sqlalchemy import select, and_
@@ -9,11 +11,11 @@ class AdminRoleMenuPower(Base):
 
     __tablename__ = 'admin_role_menu_power'
 
-    uuid = db.Column(db.Integer, primary_key=True, autoincrement=True, unique=True)
-    role_id = db.Column(db.Integer, nullable=False, unique=True, comment="角色标识")
-    menu_id = db.Column(db.Integer, nullable=False, unique=True, comment="菜单标识")
-    power_id = db.Column(db.Integer, nullable=False, unique=True, comment="操作标识")
-    create_time = db.Column(db.TIMESTAMP, nullable=False, comment="创建时间")
+    uuid = db.Column(BigInteger, primary_key=True, autoincrement=True, unique=True)
+    role_id = db.Column(BigInteger, nullable=False, unique=True, comment="角色标识")
+    menu_id = db.Column(BigInteger, nullable=False, unique=True, comment="菜单标识")
+    power_id = db.Column(BigInteger, nullable=False, unique=True, comment="操作标识")
+    create_time = db.Column(db.DateTime(timezone=True), comment="创建时间", server_default=func.now(), default=datetime.now)
 
     def get_keys(self):
         return {
@@ -60,6 +62,14 @@ class AdminRoleMenuPower(Base):
     @staticmethod
     def del_power_by_menuId_roleIds(menu_id, role_ids):
         deleted_objects = AdminRoleMenuPower.__table__.delete().where(and_(AdminRoleMenuPower.menu_id == menu_id, AdminRoleMenuPower.role_id.in_(role_ids)))
+        result = db.session.execute(deleted_objects)
+        db.session.commit()
+        return result.rowcount
+
+    @staticmethod
+    def del_power_by_menuId_roleId(menu_id, role_id):
+        deleted_objects = AdminRoleMenuPower.__table__.delete().where(
+            and_(AdminRoleMenuPower.menu_id == menu_id, AdminRoleMenuPower.role_id == role_id))
         result = db.session.execute(deleted_objects)
         db.session.commit()
         return result.rowcount
@@ -125,39 +135,22 @@ class AdminRoleMenuPower(Base):
         return flag
 
     @staticmethod
-    def transanction_save_roles_menus_powers(roles_menus_powers_dict):
-        flag = True
-        try:
-            # db.session.begin_nested()
-            for role_id, menu_power_ids in roles_menus_powers_dict.items():
-                if not menu_power_ids:
-                    deleted_by_role_id = AdminRoleMenuPower.__table__.delete().where(AdminRoleMenuPower.role_id == role_id)
-                    db.session.execute(deleted_by_role_id)
-                    db.session.commit()
-                for menu_id, power_ids in menu_power_ids.items():
-                    db.session.begin_nested()
-                    deleted_objects = AdminRoleMenuPower.__table__.delete().where(AdminRoleMenuPower.role_id == role_id).where(AdminRoleMenuPower.menu_id == menu_id)
-                    res = db.session.execute(deleted_objects)
-                    db.session.commit()
-                    items = []
-                    for power_id in power_ids:
-                        items.append({'role_id': role_id, 'menu_id': menu_id, 'power_id': power_id})
-                        if not items and res.rowcount == 0:
-                            # db.session.rollback()
-                            flag = False
-                        else:
-                            db.session.execute(
-                                AdminRoleMenuPower.__table__.insert(),
-                                items
-                            )
-                            db.session.commit()
-            # db.session.commit()
-        except Exception as e:
-            print(e, "---e---")
-            db.session.rollback()
-        # db.session.commit()
-        db.session.close()
-        return flag
+    def get_info_by_roleId_menuId_powerId(role_id, menu_id, power_id):
+        return AdminRoleMenuPower.query\
+            .filter(AdminRoleMenuPower.role_id == role_id)\
+            .filter(AdminRoleMenuPower.menu_id == menu_id)\
+            .filter(AdminRoleMenuPower.power_id == power_id)\
+            .first()
+
+    @staticmethod
+    def del_info_by_roleId_menuId_powerId(role_id, menu_id, power_id):
+        deleted_objects = AdminRoleMenuPower.__table__.delete().where(
+            AdminRoleMenuPower.power_id == power_id,
+            AdminRoleMenuPower.role_id == role_id,
+            AdminRoleMenuPower.menu_id == menu_id)
+        result = db.session.execute(deleted_objects)
+        db.session.commit()
+        return result.rowcount
 
     @staticmethod
     def get_role_menu_powers(role_ids):

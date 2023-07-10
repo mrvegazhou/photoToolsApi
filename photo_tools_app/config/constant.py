@@ -22,7 +22,7 @@ class Constant(Enum):
     BAIDU_API_KEY = 'lTKy64EI8jDwPzyXlPmZttTZ'
     BAIDU_SECRET_KEY = '4soBMzSFClAQG5LwYxTH56TDhiPzIEwf'
 
-    PAGE_SIZE = 10
+    PAGE_SIZE = 20
 
     # redis keys
     R_FIX_OLD_IMG = 'fix_old_img'

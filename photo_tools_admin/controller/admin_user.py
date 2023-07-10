@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from photo_tools_admin.__init__ import send, reqparse, utils
+from photo_tools_admin.__init__ import send, reqparse, utils, g, CODE
 from . import admin
 from photo_tools_admin.service.admin_user import AdminUserService
 
@@ -22,6 +22,14 @@ def login():
     user_info = AdminUserService.on_login(username, password)
     return send(200, data=user_info)
 
+
+@admin.route('/getAdminRoleMenuPowers', methods=['POST'])
+def get_admin_role_menu_powers():
+    # uuid = g.admin_user_id
+    # if not uuid:
+    #     return send(10024, data=CODE[10024])
+    role_menu_powers = AdminUserService.flush_admin_powers(1)
+    return send(200, data=role_menu_powers)
 
 @admin.route('/addAdminUser', methods=['POST'])
 def register():

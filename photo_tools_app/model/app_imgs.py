@@ -97,28 +97,27 @@ class AppImgs(Base):
                              type=None,
                              begin_date=None,
                              end_date=None):
-        with db.session.no_autoflush:
-            total = AppImgs.get_app_imgs_total(tags, url, type, begin_date, end_date)
-            start, end, _ = utils['common'].pagination(page_num, page_size, total)
-            exp = AppImgs.query
-            if tags:
-                tags = tags.strip()
-                tags_list = tags.split()
-                if len(tags_list)==1:
-                    exp = exp.filter(AppImgs.tags.ilike('%{keyword}%'.format(keyword=tags)))
-                else:
-                    or_ilike_list = []
-                    for tag in tags_list:
-                        or_ilike_list.append(AppImgs.tags.ilike('%{keyword}%'.format(keyword=tag)))
-                    exp = exp.filter(or_(*or_ilike_list))
-            if url:
-                url = url.strip()
-                exp = exp.filter(AppImgs.url == url)
-            if type:
-                exp = exp.filter(AppImgs.type == type)
-            if begin_date and end_date:
-                exp = exp.filter(db.and_(AppImgs.create_time <= begin_date, AppImgs.create_time >= end_date))
-            return exp.order_by(AppImgs.uuid.asc()).offset(start).limit(page_size).all(), total
+        total = AppImgs.get_app_imgs_total(tags, url, type, begin_date, end_date)
+        start, end, _ = utils['common'].pagination(page_num, page_size, total)
+        exp = AppImgs.query
+        if tags:
+            tags = tags.strip()
+            tags_list = tags.split()
+            if len(tags_list)==1:
+                exp = exp.filter(AppImgs.tags.ilike('%{keyword}%'.format(keyword=tags)))
+            else:
+                or_ilike_list = []
+                for tag in tags_list:
+                    or_ilike_list.append(AppImgs.tags.ilike('%{keyword}%'.format(keyword=tag)))
+                exp = exp.filter(or_(*or_ilike_list))
+        if url:
+            url = url.strip()
+            exp = exp.filter(AppImgs.url == url)
+        if type:
+            exp = exp.filter(AppImgs.type == type)
+        if begin_date and end_date:
+            exp = exp.filter(db.and_(AppImgs.create_time <= begin_date, AppImgs.create_time >= end_date))
+        return exp.order_by(AppImgs.uuid.asc()).offset(start).limit(page_size).all(), total
 
 
     @staticmethod

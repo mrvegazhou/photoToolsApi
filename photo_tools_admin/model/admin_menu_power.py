@@ -17,7 +17,7 @@ class AdminMenuPower(Base):
     description = db.Column(db.String(255), server_default="", comment="描述")
     status = db.Column(db.SMALLINT, default=1, server_default='1', comment="1 正常 0 禁止")
     sorts = db.Column(db.Integer, nullable=False, default=0, server_default='0', comment="操作排序")
-    create_time = db.Column(db.TIMESTAMP, comment="创建时间", server_default=func.now())
+    create_time = db.Column(db.DateTime(timezone=True), comment="创建时间", server_default=func.now(), default=datetime.now)
     update_time = db.Column(db.TIMESTAMP, comment="修改时间")
 
     def get_keys(self):
@@ -30,6 +30,10 @@ class AdminMenuPower(Base):
             "description": self.description,
             "status": self.status
         }
+
+    @staticmethod
+    def get_powers_by_menu_id(menu_id):
+        return AdminMenuPower.query.filter(AdminMenuPower.menu_id == menu_id).order_by(AdminMenuPower.uuid.asc()).all()
 
     @staticmethod
     def get_powers_by_menu_ids(ids=[], order=True):
@@ -76,16 +80,17 @@ class AdminMenuPower(Base):
     def del_menu_power(uuid):
         flag = False
         try:
-            with db.session.begin(subtransactions=True):
-                deleted_objects = AdminMenuPower.__table__.delete().where(AdminMenuPower.uuid == uuid)
-                db.session.execute(deleted_objects)
-                deleted_objects = AdminRoleMenuPower.__table__.delete().where(AdminRoleMenuPower.power_id == uuid)
-                db.session.execute(deleted_objects)
-                flag = True
+            db.session.begin_nested()
+            deleted_objects = AdminMenuPower.__table__.delete().where(AdminMenuPower.uuid == uuid)
+            db.session.execute(deleted_objects)
+            deleted_objects = AdminRoleMenuPower.__table__.delete().where(AdminRoleMenuPower.power_id == uuid)
+            db.session.execute(deleted_objects)
+            db.session.commit()
+            flag = True
         except Exception as e:
+            print(e, "----e delete----")
             flag = False
             db.session.rollback()
-        db.session.commit()
         return flag
 
     @staticmethod

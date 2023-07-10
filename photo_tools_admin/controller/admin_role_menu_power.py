@@ -1,28 +1,13 @@
 # -*- coding: utf-8 -*-
-from photo_tools_admin.__init__ import send, reqparse, request
+from photo_tools_admin.__init__ import send, reqparse, request, CODE
 from . import admin
 from photo_tools_admin.service.admin_role_menu_power import AdminRoleMenuPowerService
-
-
-# 通过角色id获取菜单和权限列表信息
-@admin.route('/roleMenuPowers', methods=['POST'])
-def get_role_menu_power_list():
-    parser = reqparse.RequestParser()
-    parser.add_argument('role_ids', help='角色标识不能为空', action='append')
-    args = parser.parse_args(http_error_code=50009)
-    role_ids = args['role_ids']
-    if role_ids and len(role_ids):
-        list = AdminRoleMenuPowerService.get_role_powers_list(role_ids)
-    else:
-        list = []
-    return send(200, data=list)
 
 
 # 获取所有角色的菜单和权限列表信息
 @admin.route('/allRolesMenuPowers', methods=['POST'])
 def get_all_roles_menu_power_list():
-    list = AdminRoleMenuPowerService.get_roles_menu_powers()
-    return send(200, data=list)
+    return send(200, data=AdminRoleMenuPowerService.get_roles_menu_powers())
 
 
 # 通过角色ID给指定角色设置菜单及权限
@@ -39,9 +24,20 @@ def set_powers_by_role_id():
 
 @admin.route('/setPowersByRoleIds', methods=['POST'])
 def set_powers_by_role_ids():
-    datas = request.get_json()
-    res = AdminRoleMenuPowerService.set_powers_by_role_ids(datas)
-    return send(200, data=res)
+    # datas = request.get_json()
+    parser = reqparse.RequestParser()
+    parser.add_argument('role_ids', help="角色ids", action='append', location='json')
+    parser.add_argument('menu_id', type=int, help="菜单", location='json')
+    parser.add_argument('power_id', type=int, help="权限", location='json')
+    args = parser.parse_args(http_error_code=50009)
+    role_ids = args['role_ids']
+    menu_id = args['menu_id']
+    power_id = args['power_id']
+    res = AdminRoleMenuPowerService.set_powers_by_role_ids(role_ids, menu_id, power_id)
+    if res:
+        return send(200, data=res)
+    else:
+        return send(60007, msg=CODE[60007], data=None)
 
 
 # 单独给菜单赋予角色权限

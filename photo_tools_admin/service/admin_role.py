@@ -13,18 +13,6 @@ class AdminRoleService:
         return AdminRole.get_roles()
 
     @staticmethod
-    def get_role_by_ids(role_ids):
-        menu_powers = AdminRole.get_roles(role_ids=role_ids)
-        lstg = groupby(menu_powers, itemgetter('menu_id'))
-        menu_power_list = []
-        for key, group in lstg:
-            powers = []
-            for g in group:
-                powers.append(g.uuid)
-            menu_power_list['menu_powers'].append({'menu_id': key, 'powers': powers})
-        return menu_power_list
-
-    @staticmethod
     def add_role(title, description, status, sorts):
         res = AdminRole.get_role_by_condition(title=title)
         if res:

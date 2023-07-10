@@ -2,18 +2,20 @@
 import sys
 sys.path.append("/Users/vega/workspace/codes/py_space/working/photo-tools-api")
 import typing
+from datetime import datetime
+from sqlalchemy import BigInteger
 from photo_tools_admin.model.base import Base
-from photo_tools_admin.__init__ import db
+from photo_tools_admin.__init__ import db, func
 
 
 class AdminUserRole(Base):
 
     __tablename__ = 'admin_user_role'
 
-    uuid = db.Column(db.Integer, primary_key=True, autoincrement=True, unique=True)
-    role_id = db.Column(db.Integer, nullable=False, unique=True, comment="角色标识")
-    admin_user_id = db.Column(db.Integer, nullable=False, unique=True, comment="管理员标识")
-    create_time = db.Column(db.TIMESTAMP, nullable=False, comment="创建时间")
+    uuid = db.Column(BigInteger, primary_key=True, autoincrement=True, unique=True)
+    role_id = db.Column(BigInteger, nullable=False, unique=True, comment="角色标识")
+    admin_user_id = db.Column(BigInteger, nullable=False, unique=True, comment="管理员标识")
+    create_time = db.Column(db.DateTime(timezone=True), comment="创建时间", server_default=func.now(), default=datetime.now)
 
     def get_keys(self):
         return {
@@ -25,7 +27,7 @@ class AdminUserRole(Base):
 
     @staticmethod
     def get_user_role_info(user_id):
-        return AdminUserRole.query.filter(AdminUserRole.admin_user_id == user_id).all()
+        return AdminUserRole.query.filter_by(admin_user_id=user_id).order_by(AdminUserRole.uuid.asc()).all()
 
     @staticmethod
     def assign_user_roles(admin_user_id, role_ids: typing.List):

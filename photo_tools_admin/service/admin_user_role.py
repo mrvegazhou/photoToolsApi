@@ -10,13 +10,17 @@ class AdminUserRoleService:
 
     @staticmethod
     def get_user_role_ids(admin_user_id):
-        if not admin_user_id:
-            raise ValError()
-        roles = AdminUserRole.get_user_role_info(admin_user_id)
+        roles = AdminUserRoleService.get_user_role_list(admin_user_id)
         role_ids = []
         for role in roles:
             role_ids.append(role.role_id)
         return role_ids
+
+    @staticmethod
+    def get_user_role_list(admin_user_id):
+        if not admin_user_id and not isinstance(admin_user_id, int):
+            raise ValError()
+        return AdminUserRole.get_user_role_info(admin_user_id)
 
     @staticmethod
     def assgin_roles(admin_user_id, role_ids):

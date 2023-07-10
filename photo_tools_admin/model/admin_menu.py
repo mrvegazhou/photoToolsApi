@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 sys.path.append("/Users/vega/workspace/codes/py_space/working/photo-tools-api")
+from sqlalchemy import BigInteger, String, SmallInteger
 from datetime import datetime, timezone
 from photo_tools_admin.model.base import Base
 from photo_tools_admin.__init__ import db, func
@@ -10,17 +11,17 @@ class AdminMenu(Base):
 
     __tablename__ = 'admin_menu'
 
-    uuid = db.Column(db.Integer, primary_key=True, autoincrement=True, unique=True)
+    uuid = db.Column(BigInteger, primary_key=True, autoincrement=True, unique=True)
     parent = db.Column(db.Integer, unique=True)
-    title = db.Column(db.String(255), nullable=False, comment="菜单名称")
-    icon = db.Column(db.String(255), nullable=False, comment="菜单图标")
-    url = db.Column(db.String(255), nullable=False, comment="菜单url")
-    description = db.Column(db.String(255), nullable=False, comment="菜单描述")
-    sorts = db.Column(db.Integer, nullable=False, default=0, server_default='0', comment="菜单排序")
-    status = db.Column(db.SMALLINT, nullable=False, default=1, server_default='1', comment="1 正常 0 禁止")
-    create_time = db.Column(db.TIMESTAMP, comment="创建时间", server_default=func.now())
-    update_time = db.Column(db.TIMESTAMP, comment="修改时间")
-    delete_time = db.Column(db.TIMESTAMP, comment="删除时间")
+    title = db.Column(String, nullable=False, comment="菜单名称")
+    icon = db.Column(String, nullable=False, comment="菜单图标")
+    url = db.Column(String, nullable=False, comment="菜单url")
+    description = db.Column(String, nullable=False, comment="菜单描述")
+    sorts = db.Column(SmallInteger, nullable=False, default=0, server_default='0', comment="菜单排序")
+    status = db.Column(SmallInteger, nullable=False, default=1, server_default='1', comment="1 正常 0 禁止")
+    create_time = db.Column(db.DateTime(timezone=True), comment="创建时间", server_default=func.now(), default=datetime.now)
+    update_time = db.Column(db.DateTime(timezone=True), comment="修改时间")
+    delete_time = db.Column(db.DateTime(timezone=True), comment="删除时间")
 
     def get_keys(self):
         return {

@@ -20,19 +20,6 @@ def get_menu_powers():
     return send(200, data=res)
 
 
-@admin.route('/menuPowersByPowerIds', methods=['POST'])
-def get_menu_powers_by_power_ids():
-    parser = reqparse.RequestParser()
-    parser.add_argument('power_ids', help='权限动作标识不能为空', type=int, action='append')
-    args = parser.parse_args(http_error_code=50009)
-    power_ids = args['power_ids']
-    if power_ids:
-        res = AdminMenuPowerService.get_menu_powers_by_power_ids(power_ids)
-    else:
-        res = []
-    return send(200, data=res)
-
-
 # 根据menu_id获取权限列表
 @admin.route('/menuPowersByMenuId', methods=['POST'])
 def get_menu_powers_by_menu_id():
