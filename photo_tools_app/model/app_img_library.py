@@ -142,9 +142,25 @@ class AppImgLibrary(Base):
         return uuid
 
     @staticmethod
-    def del_app_img(uuid):
+    def del_app_img_lib(uuid):
         deleted_objects = AppImgLibrary.__table__.delete().where(AppImgLibrary.uuid == uuid)
         result = db.session.execute(deleted_objects)
         db.session.commit()
         db.session.close()
         return result.rowcount
+
+    @staticmethod
+    def update_app_img_lib(uuid=None, tags=None, url=None, note=None):
+        if not uuid:
+            return None
+        args = {}
+        if tags:
+            args['tags'] = tags
+        if url:
+            args['url'] = url
+        if note:
+            args['note'] = note
+        num_rows_updated = AppImgLibrary.query.filter(AppImgLibrary.uuid == uuid).update(args)
+        db.session.commit()
+        db.session.close()
+        return num_rows_updated

@@ -23,7 +23,7 @@ class AppAd(Base):
             "uuid": self.uuid,
             "type": self.type,
             "content": self.content,
-            "url": self.img,
+            "url": self.url,
             "create_time": self.create_time,
             "update_time": self.update_time
         }
@@ -47,7 +47,7 @@ class AppAd(Base):
                             type=None,
                             begin_date=None,
                             end_date=None):
-        total = AppAd.get_app_imgs_total(content, url, type, begin_date, end_date)
+        total = AppAd.get_app_ads_total(content, url, type, begin_date, end_date)
         start, end, _ = utils['common'].pagination(page_num, page_size, total)
         exp = AppAd.query
         if content:

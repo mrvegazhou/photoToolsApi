@@ -2,6 +2,7 @@
 from photo_tools_app.model.app_img_library import AppImgLibrary as AppImgLibraryModel
 from photo_tools_app.model.app_search_log import AppSearchLog as AppSearchLogModel
 from photo_tools_app.service.static_pages import StaticPages
+from photo_tools_app.exception.api_exception import ImgLibParamError
 from PIL import Image
 
 
@@ -25,3 +26,22 @@ class AppImgLibraryService(object):
         model.content = tags
         model.user_id = user_id
         AppImgLibraryModel.save(model)
+
+    @staticmethod
+    def get_app_img_lib_list_by_page(page_num=None, tags=None, url=None, note=None, begin_date=None, end_date=None):
+        lists, total = AppImgLibraryModel.get_app_imgs_by_page(page_num=page_num, tags=tags, url=url, note=note, begin_date=begin_date, end_date=end_date)
+        return lists, total
+
+    @staticmethod
+    def update_app_img_lib(uuid=None, tags=None, url=None, note=None):
+        if not uuid:
+            raise ImgLibParamError()
+        if not tags and not url and not note:
+            raise ImgLibParamError()
+        return AppImgLibraryModel.update_app_img_lib(uuid=uuid, tags=tags, url=url, note=note)
+
+    @staticmethod
+    def del_app_img_lib(uuid=None):
+        if not uuid:
+            raise ImgLibParamError()
+        return AppImgLibraryModel.del_app_img_lib(uuid)

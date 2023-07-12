@@ -61,29 +61,29 @@ class AdminRoleMenuPowerService:
 
         # 获取 role_id => {menu_id:, power_id:} 形式的数据
         role_menu_powers_dict = {}
+        menu_ids = []
+        power_ids = []
         for item in role_menu_powers:
             if item.role_id in role_menu_powers_dict:
                 role_menu_powers_dict[item.role_id].append({"menu_id": item.menu_id, "power_id": item.power_id})
             else:
                 role_menu_powers_dict.setdefault(item.role_id, [{"menu_id": item.menu_id, "power_id": item.power_id}])
+            menu_ids.append(item.menu_id)
+            power_ids.append(item.power_id)
+
         res = []
-        menu_ids = []
-        power_ids = []
         for role in roles:
-            if role.uuid in role_menu_powers_dict:
-                role_menu_powers_by_role = role_menu_powers_dict[role.uuid]
-                role = dict(role)
-                role['menu_powers'] = []
-                powers = {}
-                for each in role_menu_powers_by_role:
-                    if each['menu_id'] in powers:
-                        powers[each['menu_id']].append(each['power_id'])
-                    else:
-                        powers[each['menu_id']] = [each['power_id']]
-                    power_ids.append(each['power_id'])
-                    menu_ids.append(each['menu_id'])
-                role['menu_powers'] = [{'menu_id': key, 'powers': powers[key]} for key in powers]
-                res.append(role)
+            role_menu_powers_by_role = role_menu_powers_dict[role.uuid]
+            role = dict(role)
+            role['menu_powers'] = []
+            powers = {}
+            for each in role_menu_powers_by_role:
+                if each['menu_id'] in powers:
+                    powers[each['menu_id']].append(each['power_id'])
+                else:
+                    powers[each['menu_id']] = [each['power_id']]
+            role['menu_powers'] = [{'menu_id': key, 'powers': powers[key]} for key in powers]
+            res.append(role)
         return res, list(set(menu_ids)), list(set(power_ids))
 
     @staticmethod
@@ -168,7 +168,6 @@ class AdminRoleMenuPowerService:
 
             db.session.commit()
         except Exception as e:
-            print(e, "---eeeee----")
             db.session.rollback()
             return False
         db.session.close()
@@ -179,7 +178,7 @@ class AdminRoleMenuPowerService:
         # 查看菜单下拥有的额角色有哪些
         if not menu_id:
             raise APIException(msg='菜单标识不能为空', code=50009)
-        role_exist_ids = AdminRoleMenuPower.get_roless_by_menuId_groupBy_roleId_menuId(menu_id)
+        role_exist_ids = AdminRoleMenuPower.get_roles_by_menuId_groupBy_roleId_menuId(menu_id)
         ids = [i[0] for i in role_exist_ids]
         # 对比出哪些角色没有选择
         diff_roleIds_1 = list(set(ids) - set(role_ids))
@@ -187,26 +186,35 @@ class AdminRoleMenuPowerService:
         no_delete_role_infos = []
         if len(diff_roleIds_1)>0:
             no_delete_role_infos = AdminRole.get_roles(diff_roleIds_1)
+
         # 可以删除的角色
         all_role_ids = AdminRoleMenuPower.get_roles_by_menuId_groupBy_roleId(menu_id)
         diff_roleIds_2 = list(set(all_role_ids) - set(ids))
+
         delete_role_ids = list(filter(lambda id: id not in role_ids, diff_roleIds_2))
         delete_count = 0
         if len(delete_role_ids)>0:
             delete_count = AdminRoleMenuPower.del_power_by_menuId_roleIds(menu_id, delete_role_ids)
         # 需要添加到菜单下的角色
         diff_roleIds_3 = list(set(role_ids) - set(ids))
+
         add_role_ids = list(filter(lambda id: id not in all_role_ids, diff_roleIds_3))
         add_count = 0
         if add_role_ids:
             # 获取菜单下的的所属操作权限
             params = []
             powers = AdminMenuPower.get_powers_by_menu_id(menu_id)
-            for power in powers:
+            if len(powers)>0:
+                for power in powers:
+                    for role_id in add_role_ids:
+                        params.append({'role_id': role_id, 'menu_id': menu_id, 'power_id': power.uuid})
+                add_count = AdminRoleMenuPower.batch_add_role_menu_powers(params)
+            else:
                 for role_id in add_role_ids:
-                    params.append({'role_id': role_id, 'menu_id': menu_id, 'power_id': power.uuid})
-            add_count = AdminRoleMenuPower.batch_add_role_menu_powers(params)
+                    params.append({'role_id': role_id, 'menu_id': menu_id, 'power_id': 0})
+                add_count = AdminRoleMenuPower.batch_add_role_menu_powers(params)
         return add_count, delete_count, [item.title for item in no_delete_role_infos]
+
 
 
 if __name__ == "__main__":

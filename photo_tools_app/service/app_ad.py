@@ -4,8 +4,8 @@ from photo_tools_app.exception.api_exception import AdUrlIsNull, AdContentIsNull
 
 class AppAdService(object):
     @staticmethod
-    def get_ad_list_by_page(page_num=1, content=None, type=None, begin_date=None, end_date=None):
-        ad_list, total = AppAdModel.get_app_ads_by_page(page_num=page_num,  content=content, type=type, begin_date=begin_date, end_date=end_date)
+    def get_ad_list_by_page(page_num=1, content=None, url=None, type=None, begin_date=None, end_date=None):
+        ad_list, total = AppAdModel.get_app_ads_by_page(page_num=page_num,  content=content, url=url, type=type, begin_date=begin_date, end_date=end_date)
         return ad_list, total
 
     @staticmethod

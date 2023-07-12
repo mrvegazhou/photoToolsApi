@@ -176,7 +176,7 @@ class AdminRoleMenuPower(Base):
             return []
 
     @staticmethod
-    def get_roless_by_menuId_groupBy_roleId_menuId(menu_id):
+    def get_roles_by_menuId_groupBy_roleId_menuId(menu_id):
         sql = select(AdminRoleMenuPower.role_id, AdminRoleMenuPower.menu_id, func.count(AdminRoleMenuPower.power_id).label("count"))\
             .where(and_(AdminRoleMenuPower.menu_id == menu_id, AdminRoleMenuPower.power_id!=0))\
             .group_by(AdminRoleMenuPower.role_id, AdminRoleMenuPower.menu_id)

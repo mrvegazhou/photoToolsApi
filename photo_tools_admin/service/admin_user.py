@@ -107,10 +107,13 @@ class AdminUserService:
         # 获取角色下的 菜单-权限 列表
         role_powers, menu_ids, power_ids = AdminRoleMenuPowerService.get_role_powers_list(roles)
         tmp['roles'] = role_powers
+
         # 获取角色下的菜单列表
         menu_list = AdminMenuService.get_menu_by_ids(menu_ids)
         tmp['menus'] = menu_list
+
         # 获取角色下的权限列表
+        power_ids = [p for p in power_ids if p != 0]
         power_list = AdminMenuPowerService.get_menu_powers_by_power_ids(power_ids)
         tmp['powers'] = power_list
         return tmp

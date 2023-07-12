@@ -102,6 +102,11 @@ class AdUrlIsNull(APIException):
     msg = CODE[12003]
     http_code = 401
 
+class ImgLibParamError(APIException):
+    res_code = 13001
+    msg = CODE[13001]
+    http_code = 401
+
 class DatabaseError(APIException):
     res_code = 40007
     msg = CODE[40007]

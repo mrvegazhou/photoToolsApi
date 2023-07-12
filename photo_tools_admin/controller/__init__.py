@@ -13,4 +13,7 @@ from photo_tools_admin.controller import \
     app_user, \
     app_imgs, \
     app_feedback, \
-    app_search_log
+    app_search_log,\
+    app_ad, \
+    app_img_library
+

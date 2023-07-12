@@ -24,11 +24,10 @@ def set_powers_by_role_id():
 
 @admin.route('/setPowersByRoleIds', methods=['POST'])
 def set_powers_by_role_ids():
-    # datas = request.get_json()
     parser = reqparse.RequestParser()
-    parser.add_argument('role_ids', help="角色ids", action='append', location='json')
-    parser.add_argument('menu_id', type=int, help="菜单", location='json')
-    parser.add_argument('power_id', type=int, help="权限", location='json')
+    parser.add_argument('role_ids', help="角色ids", action='append', location='json', required=True)
+    parser.add_argument('menu_id', type=int, help="菜单", location='json', required=True)
+    parser.add_argument('power_id', type=int, help="权限", location='json', required=True)
     args = parser.parse_args(http_error_code=50009)
     role_ids = args['role_ids']
     menu_id = args['menu_id']
