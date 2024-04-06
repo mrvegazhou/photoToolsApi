@@ -34,7 +34,7 @@ scheduler.start()
 # 限速
 limiter = Limiter(
     app,
-    key_func=get_remote_address
+    # key_func=get_remote_address
 )
 # 数据库
 db = SQLAlchemy(app)

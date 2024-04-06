@@ -1,7 +1,6 @@
 # coding:utf8
 import json
 import re
-import time
 import pandas as pd
 from .stockRealTimeBase import StockRealTimeBase
 from modules.datas.config.stockDataConst import Constants, NetEaseConfig
