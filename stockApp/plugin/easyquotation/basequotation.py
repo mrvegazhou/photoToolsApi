@@ -61,6 +61,7 @@ class BaseQuotation(metaclass=abc.ABCMeta):
                 "(KHTML, like Gecko) Chrome/54.0.2840.100 "
                 "Safari/537.36"
             ),
+            'Referer': 'https://finance.sina.com.cn'
         }
 
         r = self._session.get(self.stock_api + params, headers=headers)

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import json
 import sys
-sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
-from stock_app.__init__ import db, utils
-from stock_app.model.base import Base
+sys.path.append("/Users/vega/workspace/codes/py_space/working/stockApi")
+from stockApp.__init__ import db, utils
+from stockApp.dao.base import Base
 
 
 class Stock(Base):

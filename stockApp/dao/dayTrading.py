@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
-sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
-from stock_app.__init__ import db, utils
+sys.path.append("/Users/vega/workspace/codes/py_space/working/stockApi")
+from stockApp.__init__ import db, utils
 import json
 
 

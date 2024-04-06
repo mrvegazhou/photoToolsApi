@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
-sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
+sys.path.append("/Users/vega/workspace/codes/py_space/working/stock-api")
 import akshare as ak
 import pandas as pd
 import numpy as np

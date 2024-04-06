@@ -133,3 +133,44 @@
     返回值：
         {"code":200,"msg":"操作成功","data":[{"uuid":1,"title":"超级管理员","sorts":1,"description":"超级管理员拥有所有权限","status":1,"menu_powers":[{"menu_id":2,"powers":[4,5,3]},{"menu_id":3,"powers":[7,9]},{"menu_id":2,"powers":[1,2,3,4,5]},{"menu_id":3,"powers":[6,7,8,9,10]},{"menu_id":4,"powers":[11,12,13,14]},{"menu_id":2,"powers":[1]}]},{"uuid":3,"title":"ceshi","sorts":1,"description":"miaoshu2","status":1,"menu_powers":[]},{"uuid":12,"title":"role10","sorts":2,"description":"role10","status":1,"menu_powers":[]},{"uuid":11,"title":"role9","sorts":2,"description":"role9","status":1,"menu_powers":[]},{"uuid":7,"title":"role5","sorts":2,"description":"role5","status":1,"menu_powers":[]},{"uuid":8,"title":"role6","sorts":2,"description":"role6","status":1,"menu_powers":[]},{"uuid":4,"title":"role2","sorts":2,"description":"role2","status":1,"menu_powers":[]},{"uuid":5,"title":"role3","sorts":3,"description":"role3","status":1,"menu_powers":[]},{"uuid":9,"title":"role7","sorts":3,"description":"role7","status":1,"menu_powers":[]},{"uuid":10,"title":"role8","sorts":4,"description":"role8","status":1,"menu_powers":[]},{"uuid":6,"title":"role4","sorts":4,"description":"role4","status":1,"menu_powers":[]},{"uuid":13,"title":"role11","sorts":6,"description":"role11","status":1,"menu_powers":[]}]}
 
+
+
+
+
+
+
+
+select * from stock.admin_menu_power
+select * from stock.admin_user
+
+ALTER TABLE stock.admin_user ALTER COLUMN create_time SET DEFAULT (now());
+ALTER TABLE stock.admin_menu_power ADD COLUMN update_time TIMESTAMPTZ;
+
+SELECT SETVAL((SELECT pg_get_serial_sequence('stock.admin_user', 'uuid')), 10, false);
+
+select * from stock.admin_role_menu_power order by uuid asc;
+select menu_id, array_to_string(ARRAY(SELECT unnest(array_agg(uuid))),',') AS role_ids from stock.admin_menu_power where menu_id in (2, 3) group by menu_id;
+select * from stock.admin_menu_power order by uuid asc;
+select * from stock.admin_role_menu_power;
+select * from stock.admin_menu;
+select * from stock.admin_user_role;
+select * from stock.admin_role;
+update stock.admin_user_role set role_id=1, admin_user_id=1 where uuid=2
+delete from stock.admin_user_role where uuid=44;
+update stock.admin_user set delete_time=null
+insert into stock.admin_role_menu_power (role_id, menu_id, power_id) values (1, 5, 22),(1, 5, 23),(1, 5, 24),(1, 5, 25)
+insert into stock.admin_user_role (role_id, admin_user_id) values (2, 1)
+insert into stock.admin_menu (title, icon, url, parent, description, sorts, status) values ('系统管理', 'icon-sys', '', 0, '系统管理', 0, 1)
+insert into stock.admin_menu_power (menu_id, title, code, description, sorts, status) values (5, '删除', 'menu:del', '菜单管理-删除权限', 4, 1)
+
+update stock.admin_menu set parent=0 where uuid=1
+
+SELECT  admin_user_id, array_to_string(ARRAY(SELECT unnest(array_agg(role_id))),',') AS role_ids
+FROM   stock.admin_user_role where admin_user_id in (1)
+GROUP BY admin_user_id
+
+
+SELECT count(stock.admin_role.uuid) AS count_1
+FROM stock.admin_role
+WHERE status=1
+
