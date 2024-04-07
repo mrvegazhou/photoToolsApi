@@ -97,12 +97,11 @@ class EastStockRealTime(StockRealTimeBase):
                 else:
                     df['date'] = date.dt.strftime('%Y-%m-%d')
                     df['time'] = date.dt.strftime('%H:%M:%S')
-                df.index.name = 'code'
-                df.set_index('code', inplace=True)
-                print(df.transpose())
             else:
                 df = pd.DataFrame(columns=stock_real_time_dict.keys())
                 df['time'] = pd.NA
+            df.index.name = 'code'
+            df.set_index('code', inplace=True)
             return df
 
     """

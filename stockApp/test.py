@@ -23,7 +23,7 @@ if __name__ == "__main__":
     # tencent =TencentStockRealTime()
     # tencent.get_stock_real_time(['300059', '002603'])
     east = EastMarketRealTime()
-    east.get_market_real_time('沪深A')
+    east.get_market_real_time('沪深xxxA')
 
 
 

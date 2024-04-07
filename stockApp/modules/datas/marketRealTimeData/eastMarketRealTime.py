@@ -22,7 +22,6 @@ class EastMarketRealTime(MarketRealTimeBase):
 
         east_market_dict = EastConfig.market_dict.value
         trade_detail_dict = EastConfig.stock_real_time_dict.value
-        flipped_trade_detail_dict = {v: k for k, v in trade_detail_dict.items()}
 
         fs = east_market_dict[market_key]
         fields = ",".join(trade_detail_dict.values())
@@ -38,15 +37,25 @@ class EastMarketRealTime(MarketRealTimeBase):
             ('fields', fields)
         )
         json_response = self._session.get(self.stock_api, headers=EastConfig.request_header.value, params=params).json()
-        df = pd.DataFrame(json_response['data']['diff'])
-        df = df.rename(columns=flipped_trade_detail_dict)
-        date = pd.to_datetime(df['date'], unit='s', errors='coerce')
-        if df['date'].isna().any():
-            df['time'] = pd.NA
-            df['date'] = pd.NA
+        return json_response['data']['diff']
+
+    def format_response_data(self, rep_data, **kwargs):
+        const_trade_detail_dict = EastConfig.stock_real_time_dict.value
+        if rep_data:
+            flipped_trade_detail_dict = {v: k for k, v in const_trade_detail_dict.items()}
+            df = pd.DataFrame(rep_data)
+            df = df.rename(columns=flipped_trade_detail_dict)
+            date = pd.to_datetime(df['date'], unit='s', errors='coerce')
+            if df['date'].isna().any():
+                df['time'] = pd.NA
+                df['date'] = pd.NA
+            else:
+                df['date'] = date.dt.strftime('%Y-%m-%d')
+                df['time'] = date.dt.strftime('%H:%M:%S')
+            df.index.name = 'code'
+            df.set_index('code', inplace=True)
         else:
-            df['date'] = date.dt.strftime('%Y-%m-%d')
-            df['time'] = date.dt.strftime('%H:%M:%S')
-        df.index.name = 'code'
-        df.set_index('code', inplace=True)
+            df = pd.DataFrame(columns=const_trade_detail_dict.keys())
+            df.index.name = 'code'
+            df.set_index('code', inplace=True)
         return df
