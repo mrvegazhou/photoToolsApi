@@ -9,6 +9,10 @@ class Constants(Enum):
     REAL_TIME_EAST_MONEY_URL = "https://push2.eastmoney.com/api/qt/ulist.np/get"
     FULL_REAL_TIME_EAST_MONEY_URL = 'http://push2.eastmoney.com/api/qt/stock/get'
     REAL_TIME_NET_EASE_URL = 'http://api.money.126.net/data/feed/{},money.api'
+    REAL_TIME_NET_TENCENT_URL = 'http://qt.gtimg.cn/q={}'
+
+    # 组合市场行情
+    MARKET_REAL_TIME_URL = 'http://push2.eastmoney.com/api/qt/clist/get'
 
 @unique
 class EastConfig(Enum):
@@ -37,6 +41,35 @@ class EastConfig(Enum):
         '俄罗斯RTS': '100.RTS', '俄罗斯指数': '100.RTS',
     }
 
+    market_dict = {
+        'all_stocks': 'm:0 t:6,m:0 t:80,m:1 t:2,m:1 t:23',
+        'sh_sz_A': 'm:0 t:6,m:0 t:80,m:1 t:2,m:1 t:23',
+        'sh_A': 'm:1 t:2,m:1 t:23',
+        'sz_A': 'm:0 t:6,m:0 t:80',
+        'bj_A': 'm:0 t:81 s:2048',
+        'chi_next_A': 'm:0 t:80',
+        'star_A': 'm:1 t:23',
+        'sh_sz_bj_A': 'm:0 t:6,m:0 t:80,m:1 t:2,m:1 t:23,m:0 t:81 s:2048',
+        'sh_north_bound_A': 'b:BK0707',
+        'sz_north_bound_A': 'b:BK0804',
+        'risk_warning_board': 'm:0 f:4,m:1 f:4',
+        'delisting': 'm:0 s:3',
+        'new_stocks': 'm:0 f:8,m:1 f:8',
+        'american_stocks': 'm:105,m:106,m:107',
+        'hk_stocks': 'm:128 t:3,m:128 t:4,m:128 t:1,m:128 t:2',
+        'china_concept_stocks': 'b:MK0201',
+        'regional_sector': 'm:90 t:1 f:!50',
+        'industry_sector': 'm:90 t:2 f:!50',
+        'conceptual_sector': 'm:90 t:3 f:!50',
+        'sh_index': 'm:1 s:2',
+        'sz_index': 'm:0 t:5',
+        'sh_sz_index': 'm:1 s:2,m:0 t:5',
+        'bond': 'b:MK0354',
+        'future': 'm:113,m:114,m:115,m:8,m:142',
+        'ETF': 'b:MK0021,b:MK0022,b:MK0023,b:MK0024',
+        'LOF': 'b:MK0404,b:MK0405,b:MK0406,b:MK0407',
+    }
+
     stock_real_time_dict = {
         'code': 'f12',
         'name': 'f14',
@@ -47,10 +80,12 @@ class EastConfig(Enum):
         'open': 'f17',
         'turnover_rate': 'f8',
         'volume_ratio': 'f10',
-        'p_e_ratio': 'f9',
+        'p_e_ratio': 'f9', # 市盈率
         'volume': 'f5',
         'turnover': 'f6',
         'yesterday_close': 'f18',
+        'total_market_value': 'f20',  # 总市值
+        'floating_market_value': 'f21',  # 流通市值
         'date': 'f124',
     }
 
@@ -233,4 +268,57 @@ class NetEaseConfig(Enum):
 
         'date': 'time',
         'time': 'time'
+    }
+
+@unique
+class TencentConfig(Enum):
+    stock_real_time_dict = {
+        'name': 1,
+        'open': 5,
+        'yesterday_close': 4,
+        'now_price': 3,
+        'high_price': 33,
+        'low_price': 34,
+        'volume': 36,  # 成交量
+        'turnover': 37,  # 成交额
+        'turnover_rate': 38,
+        'percent': 32,
+        'updown': 31,
+        'out_trade': 7,
+        'in_trade': 8,
+        'p_e_ratio': 39,
+        'limit_up_price': 47,
+        'limit_down_price': 48,
+
+        'bid_vol_1': 10,
+        'bid_price_1': 9,
+
+        'bid_vol_2': 12,
+        'bid_price_2': 11,
+
+        'bid_vol_3': 14,
+        'bid_price_3': 13,
+
+        'bid_vol_4': 16,
+        'bid_price_4': 15,
+
+        'bid_vol_5': 18,
+        'bid_price_5': 17,
+
+        'ask_vol_1': 20,
+        'ask_price_1': 19,
+
+        'ask_vol_2': 22,
+        'ask_price_2': 21,
+
+        'ask_vol_3': 24,
+        'ask_price_3': 23,
+
+        'ask_vol_4': 26,
+        'ask_price_4': 25,
+
+        'ask_vol_5': 28,
+        'ask_price_5': 27,
+
+        'date': 30
     }

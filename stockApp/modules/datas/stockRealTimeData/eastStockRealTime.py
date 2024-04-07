@@ -78,22 +78,31 @@ class EastStockRealTime(StockRealTimeBase):
     def format_response_data(self, rep_data, **kwargs):
         if kwargs['full']:
             full_stock_real_time_dict = EastConfig.full_stock_real_time_dict.value
-            swapped_const_stock_real_time = {value: key for key, value in full_stock_real_time_dict.items()}
+            flipped_const_stock_real_time = {value: key for key, value in full_stock_real_time_dict.items()}
             if not rep_data:
                 df = pd.DataFrame(columns=full_stock_real_time_dict.keys())
             else:
                 df = pd.DataFrame.from_dict(rep_data, orient='index')
-                df.rename(columns=swapped_const_stock_real_time, inplace=True)
+                df.rename(columns=flipped_const_stock_real_time, inplace=True)
             return df
         else:
             stock_real_time_dict = EastConfig.stock_real_time_dict.value
-            swapped_const_stock_real_time = {value: key for key, value in stock_real_time_dict.items()}
+            flipped_const_stock_real_time = {value: key for key, value in stock_real_time_dict.items()}
             if rep_data:
-                df = pd.DataFrame(rep_data)[list(stock_real_time_dict.values())].rename(columns=swapped_const_stock_real_time)
+                df = pd.DataFrame(rep_data)[list(stock_real_time_dict.values())].rename(columns=flipped_const_stock_real_time)
+                date = pd.to_datetime(df['date'], unit='s', errors='coerce')
+                if df['date'].isna().any():
+                    df['time'] = pd.NA
+                    df['date'] = pd.NA
+                else:
+                    df['date'] = date.dt.strftime('%Y-%m-%d')
+                    df['time'] = date.dt.strftime('%H:%M:%S')
                 df.index.name = 'code'
                 df.set_index('code', inplace=True)
+                print(df.transpose())
             else:
                 df = pd.DataFrame(columns=stock_real_time_dict.keys())
+                df['time'] = pd.NA
             return df
 
     """
