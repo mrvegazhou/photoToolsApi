@@ -1,5 +1,4 @@
 # _*_ coding: utf-8 _*_
-import os
 from enum import Enum, unique
 
 @unique

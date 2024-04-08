@@ -92,3 +92,12 @@ class StockDict(Enum):
         'ask_price_2': '卖2价格',
         'ask_price_1': '卖1价格',
     }
+
+    fund_dict = {
+        'code': '基金代码',
+        'short_name': '基金简称',
+        'date': '日期',
+        'NAV_per_unit': '单位净值',
+        'cumulative_NAV': '累计净值',
+        'percent': '涨跌幅'
+    }
