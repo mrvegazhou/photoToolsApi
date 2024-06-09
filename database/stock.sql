@@ -152,3 +152,16 @@ CREATE TABLE if not exists "stock"."admin_menu"
   delete_time TIMESTAMPTZ
 )with (oids = false);
 
+
+DO $$
+DECLARE
+    i INT := 0;
+BEGIN
+    WHILE i < 10 LOOP
+--         EXECUTE format('ALTER TABLE stock.day_trading_%s ADD COLUMN code2 char(6);', i);
+-- 				EXECUTE format('UPDATE stock.day_trading_%s SET code2 = LPAD(code::text, 6, ''0'');', i);
+-- 				EXECUTE format('ALTER TABLE stock.day_trading_%s DROP COLUMN code;', i);
+				EXECUTE format('ALTER TABLE stock.day_trading_%s RENAME COLUMN code2 TO code;', i);
+        i := i + 1;
+    END LOOP;
+END $$;

@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-from stock_app.__init__ import db, utils
+from stockApp.__init__ import db, utils
 import typing
 
+
 class Base(db.Model):
+
     # Flask-SQLAlchemy创建table时,如何声明基类（这个类不会创建表,可以被继承）
     # 方法就是把__abstract__这个属性设置为True,这个类为基类，不会被创建为表！
     __abstract__ = True

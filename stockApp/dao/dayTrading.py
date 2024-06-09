@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 import sys
 sys.path.append("/Users/vega/workspace/codes/py_space/working/stockApi")
-from stockApp.__init__ import db, utils
+from stockApp import db, utils
+from sqlalchemy import BigInteger, String, Date, Numeric
 import json
+from core.log.logger import get_module_logger
 
 
 class DayTrading:
@@ -10,7 +12,7 @@ class DayTrading:
     _mapper = {}
 
     @staticmethod
-    def get_hash_table_id(code, max_num):
+    def get_hash_table_id(code, max_num=10):
         hash_str = utils['common'].md5(code)
         num = int(hash_str[:2] + hash_str[-2:], 16)  # 16进制 --> 10进制
         hash_id = num % max_num
@@ -31,17 +33,19 @@ class DayTrading:
 
                 '__repr__': DayTrading.__repr__,
 
-                'uuid': db.Column(db.Integer, primary_key=True, autoincrement=True, unique=True),  # id 整型，主键，自增，唯一
-                'stock_code': db.Column(db.String(255), unique=True, nullable=False, comment="股票代码"),
-                'trading_date': db.Column(db.String(50), nullable=False, comment="日交易日期"),
-                'close_price': db.Column(db.Numeric, nullable=False, comment="收盘价"),
-                'high_price': db.Column(db.Numeric, nullable=False, comment="最高价"),
-                'low_price': db.Column(db.Numeric, nullable=False, comment="最低价"),
-                'open_price': db.Column(db.Numeric, nullable=False, comment="开盘价"),
-                'volume':  db.Column(db.Numeric, nullable=False, comment="成交量(股)"),
-                'outstanding_share': db.Column(db.Numeric, nullable=False, comment="流动股本(股)"),
-                'turnover': db.Column(db.Numeric, nullable=False, comment="换手率=成交量(股)/流动股本(股)"),
-                'chg_pct': db.Column(db.Numeric, nullable=False, comment="涨跌幅=(现价-上一个交易日收盘价)/上一个交易日收盘价*100%")
+                'uuid': db.Column(BigInteger, primary_key=True, autoincrement=True, unique=True),  # id 整型，主键，自增，唯一
+                'code': db.Column(String, unique=True, nullable=False, comment="股票代码"),
+                'trading_date': db.Column(Date, nullable=False, comment="日交易日期"),
+                'close': db.Column(Numeric, nullable=False, comment="收盘价"),
+                'high_price': db.Column(Numeric, nullable=False, comment="最高价"),
+                'low_price': db.Column(Numeric, nullable=False, comment="最低价"),
+                'open': db.Column(Numeric, nullable=False, comment="开盘价"),
+                'volume':  db.Column(Numeric, nullable=False, comment="成交量(股)"),
+                'turnover': db.Column(Numeric, nullable=False, comment="成交额"),
+                'turnover_rate': db.Column(Numeric, nullable=False, comment="换手率=成交量(股)/流动股本(股)"),
+                'amplitude': db.Column(Numeric, nullable=False, comment="振幅"),
+                'percent': db.Column(Numeric, nullable=False, comment="涨跌幅=(现价-上一个交易日收盘价)/上一个交易日收盘价*100%"),
+                'price_change': db.Column(Numeric, nullable=False, comment="涨跌额")
             })
             DayTrading._mapper[class_name] = ModelClass
 
@@ -50,16 +54,18 @@ class DayTrading:
     def __repr__(self):
         obj = {
             "uuid": self.uuid,
-            "stock_code": self.stock_code,
+            "code": self.code,
             "trading_date": self.trading_date,
-            "close_price": self.close_price,
+            "close": self.close,
+            "open": self.open,
             "high_price": self.high_price,
             "low_price": self.low_price,
-            "open_price": self.open_price,
             "volume": self.volume,
-            "outstanding_share": self.outstanding_share,
             "turnover": self.turnover,
-            "chg_pct": self.chg_pct
+            "turnover_rate": self.turnover_rate,
+            "amplitude": self.amplitude,
+            "percent": self.percent,
+            "price_change": self.price_change,
         }
         return json.dumps(obj, cls=utils["common"].ComplexEncoder)
 
@@ -68,7 +74,7 @@ class DayTrading:
     def get_stock_day_trading_info(code, start_date, end_date):
         obj = DayTrading.model(code)
         query = obj.query.filter(db.and_(
-            db.column('stock_code') == code,
+            db.column('code') == code,
             db.column('trading_date') >= start_date,
             db.column('trading_date') <= end_date
         )).order_by(db.text("trading_date desc"))
@@ -88,7 +94,7 @@ class DayTrading:
             cols = '*'
 
         result = db.session.connection().execute(db.text(
-            'select {cols} from {tbl_name} where stock_code = :code and  trading_date>=:start_date and trading_date<=:end_date order by trading_date desc'.format(cols=cols, tbl_name=tbl_name)),
+            'select {cols} from {tbl_name} where code = :code and trading_date>=:start_date and trading_date<=:end_date order by trading_date desc'.format(cols=cols, tbl_name=tbl_name)),
                                                  {'code': code, 'start_date': start_date, 'end_date': end_date})
         return result.fetchall()
 
@@ -105,7 +111,7 @@ class DayTrading:
         else:
             cols = '*'
         result = db.session.connection().execute(db.text(
-            'select {cols} from {tbl_name} where stock_code = :code and  trading_date =: trading_date order by trading_date desc'.format(
+            'select {cols} from {tbl_name} where code = :code and  trading_date =: trading_date order by trading_date desc'.format(
                 cols=cols, tbl_name=tbl_name)),
             {'code': code, 'trading_date': date})
         return result.fetchone()
@@ -124,11 +130,10 @@ class DayTrading:
             cols = '*'
 
         result = db.session.connection().execute(db.text(
-            'select {cols} from {tbl_name} where stock_code = :code and  trading_date>=:start_date and trading_date<=:end_date order by trading_date desc'.format(
+            'select {cols} from {tbl_name} where code = :code and trading_date>=:start_date and trading_date<=:end_date order by trading_date desc'.format(
                 cols=cols, tbl_name=tbl_name)),
             {'code': code, 'start_date': start_date, 'end_date': end_date})
         return result.fetchall()
-
 
     @staticmethod
     def get_stock_day_trading_by_date(code, date):
@@ -147,66 +152,37 @@ class DayTrading:
                 CREATE TABLE if not exists "stock"."day_trading_{}"
                 (
                   uuid SERIAL NOT NULL PRIMARY KEY,
-                  stock_code character varying NOT NULL,
+                  code character varying NOT NULL,
                   trading_date timestamp without time zone,
-                  close_price numeric,
-                  high_price numeric,
-                  low_price numeric,
-                  open_price numeric,
+                  close numeric(10, 2),
+                  high_price numeric(10, 2),
+                  low_price numeric(10, 2),
+                  open numeric(10, 2),
                   volume numeric,
-                  outstanding_share numeric,
                   turnover numeric,
-                  chg_pct numeric,
-                  
-                  DIFF numeric,
-                  DEA numeric,
-                  MACD numeric,
-                  MACD_buy numeric,
-                  KDJ_K numeric,
-                  KDJ_D numeric,
-                  KDJ_J numeric,
-                  KDJ_buy numeric,
-                  MA5 numeric,
-                  MA10 numeric,
-                  MA20 numeric,
-                  MA43 numeric,
-                  MA60 numeric,
-                  M5_cross_M10 numeric,
-                  
-                  PE numeric,
-                  PE_TTM numeric,
-                  PB numeric,
-                  PS numeric,
-                  PS_TTM numeric,
-                  DV_ratio numeric,
-                  DV_TTM numeric,
-                  total_mv numeric,
-                  
+                  amplitude numeric,
+                  percent numeric,
+                  price_change numeric,
+                  turnover_rate numeric
                 ) with (oids = false);
                 COMMENT on table "stock"."day_trading_{}" is '股票日交易行情';
                 COMMENT ON COLUMN stock.day_trading_{}.volume IS '成交量(股)';
-                COMMENT ON COLUMN stock.day_trading_{}.outstanding_share IS '流动股本(股)';
-                COMMENT ON COLUMN stock.day_trading_{}.turnover IS '换手率=成交量(股)/流动股本(股)';
-                COMMENT ON COLUMN stock.day_trading_{}.chg_pct IS '涨跌幅=(现价-上一个交易日收盘价)/上一个交易日收盘价*100%';
-                COMMENT ON COLUMN stock.day_trading_{}.PE IS '市盈率';
-                COMMENT ON COLUMN stock.day_trading_{}.PE_TTM IS '市盈率TTM';
-                COMMENT ON COLUMN stock.day_trading_{}.PB IS '市净率';
-                COMMENT ON COLUMN stock.day_trading_{}.PS IS '市销率';
-                COMMENT ON COLUMN stock.day_trading_{}.PS_TTM IS '市销率TTM';
-                COMMENT ON COLUMN stock.day_trading_{}.DV_ratio IS '股息率';
-                COMMENT ON COLUMN stock.day_trading_{}.DV_TTM IS '股息率TTM';
-                COMMENT ON COLUMN stock.day_trading_{}.total_mv IS '总市值';
-            '''.format(i, i, i, i, i, i)
-            db.session.execute(sql)
+                COMMENT ON COLUMN stock.day_trading_{}.turnover IS '成交额';
+                COMMENT ON COLUMN stock.day_trading_{}.amplitude IS '振幅';
+                COMMENT ON COLUMN stock.day_trading_{}.percent IS '涨跌幅=(现价-上一个交易日收盘价)/上一个交易日收盘价*100%';
+                COMMENT ON COLUMN stock.day_trading_{}.price_change IS '涨跌额';
+                COMMENT ON COLUMN stock.day_trading_{}.turnover_rate IS '换手率=成交量(股)/流动股本(股)';
+            '''.format(i, i, i, i, i, i, i, i)
+            db.session.execute(db.text(sql))
             db.session.commit()
 
     @staticmethod
-    def drop_tables():
-        for i in range(10):
+    def drop_tables(num=50):
+        for i in range(num):
             sql = '''
                 DROP TABLE IF EXISTS "stock"."day_trading_{}";
             '''.format(i)
-            db.session.execute(sql)
+            db.session.execute(db.text(sql))
             db.session.commit()
 
     def get_table(self, code):
@@ -214,27 +190,55 @@ class DayTrading:
 
     @staticmethod
     def clear_tables():
-        for i in range(10):
+        for i in range(50):
             sql = '''
                 TRUNCATE TABLE "stock"."day_trading_{}";
             '''.format(i)
-            db.session.execute(sql)
-            db.session.commit()
+            db.session.execute(db.text(sql))
+        db.session.commit()
+        db.session.close()
 
     @staticmethod
-    def add_trading_info(code, **kwargs):
-        obj = DayTrading.model(code)
-        for key, value in kwargs.items():
-            if hasattr(obj, key) and key != 'uuid':
-                setattr(obj, key, value)
-        db.session.add(obj)
-        uuid = obj.uuid
-        db.session.commit()
-        return uuid
+    def add_trading_info(code, obj):
+        try:
+            info_model = DayTrading.model(code)
+            for key, value in obj.items():
+                if hasattr(info_model, key) and key != 'uuid':
+                    setattr(info_model, key, value)
+            db.session.add(info_model)
+            uuid = info_model.uuid
+            db.session.commit()
+            return uuid
+        except Exception as e:
+            get_module_logger("DayTradingDao").warning(f"save day trading info error:{e}")
+            db.session.rollback()
+        finally:
+            db.session.close()
+
+    @staticmethod
+    def add_trading_list(objs):
+        try:
+            day_trading_to_add = []
+            for obj in objs:
+                info_model = DayTrading.model(obj['code'])
+                for key, value in obj.items():
+                    if hasattr(info_model, key) and key != 'uuid':
+                        setattr(info_model, key, value)
+                day_trading_to_add.append(info_model)
+            db.session.add_all(day_trading_to_add)
+            db.session.commit()
+            return [obj.uuid for obj in day_trading_to_add]
+        except Exception as e:
+            get_module_logger("DayTradingDao").warning(f"save day trading list error:{e}")
+            db.session.rollback()
+        finally:
+            db.session.close()
+
 
 
 if __name__ == "__main__":
-    obj = DayTrading.model('0000')
-    print(hasattr(obj, "stock_code"))
+    # obj = DayTrading.model('0000')
+    # print(hasattr(obj, "code"))
+    DayTrading.clear_tables()
 
 

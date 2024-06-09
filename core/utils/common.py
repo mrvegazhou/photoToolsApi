@@ -4,6 +4,8 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 """
+from subprocess import call
+import os
 import sys
 import json
 import re
@@ -22,7 +24,7 @@ from dateutil.relativedelta import relativedelta
 from hashlib import sha512
 from random import choice
 from sqlalchemy.ext.declarative import DeclarativeMeta
-
+import unicodedata
 
 from flask import request
 
@@ -340,7 +342,7 @@ def pagination(current_page, page_size, total):
     total = int(total)
 
     if total == 0:
-        return 0, 0
+        return 0, 0, 0
 
     max_page_num = math.ceil(total / page_size)
 
@@ -353,7 +355,7 @@ def pagination(current_page, page_size, total):
     if current_page == max_page_num:
         end = total
 
-    return start, end
+    return start, end, max_page_num
 
 
 # 判断是否为数字
@@ -368,3 +370,92 @@ def is_num(value):
         return False
     else:
         return True
+
+# 判断是否为中文
+def is_chinese(s):
+    for char in s:
+        if not '\u4e00' <= char <= '\u9fff':
+            return False
+    return True
+
+_windows_device_files = (
+    "CON",
+    "AUX",
+    "COM1",
+    "COM2",
+    "COM3",
+    "COM4",
+    "LPT1",
+    "LPT2",
+    "LPT3",
+    "PRN",
+    "NUL",
+)
+def secure_filename(filename: str) -> str:
+    r"""Pass it a filename and it will return a secure version of it.  This
+    filename can then safely be stored on a regular file system and passed
+    to :func:`os.path.join`.  The filename returned is an ASCII only string
+    for maximum portability.
+
+    On windows systems the function also makes sure that the file is not
+    named after one of the special device files.
+
+    >>> secure_filename("My cool movie.mov")
+    'My_cool_movie.mov'
+    >>> secure_filename("../../../etc/passwd")
+    'etc_passwd'
+    >>> secure_filename('i contain cool \xfcml\xe4uts.txt')
+    'i_contain_cool_umlauts.txt'
+
+    The function might return an empty filename.  It's your responsibility
+    to ensure that the filename is unique and that you abort or
+    generate a random filename if the function returned an empty one.
+
+    .. versionadded:: 0.5
+
+    :param filename: the filename to secure
+    """
+    filename = unicodedata.normalize("NFKD", filename)
+    filename = filename.encode("utf8", "ignore").decode("utf8")  # 编码格式改变
+
+    for sep in os.path.sep, os.path.altsep:
+        if sep:
+            filename = filename.replace(sep, " ")
+    _filename_ascii_add_strip_re = re.compile(r'[^A-Za-z0-9_\u4E00-\u9FBF\u3040-\u30FF\u31F0-\u31FF.-]')
+    filename = str(_filename_ascii_add_strip_re.sub('', '_'.join(filename.split()))).strip('._')  # 添加新规则
+
+    # on nt a couple of special files are present in each folder.  We
+    # have to ensure that the target file is not such a filename.  In
+    # this case we prepend an underline
+    if (
+            os.name == "nt"
+            and filename
+            and filename.split(".")[0].upper() in _windows_device_files
+    ):
+        filename = f"_{filename}"
+
+    return filename
+
+
+# 字节转文件大小单位
+def convertFileSize(size_bytes):
+   if size_bytes == 0:
+       return "0B"
+   size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+   i = int(math.floor(math.log(size_bytes, 1024)))
+   p = math.pow(1024, i)
+   s = round(size_bytes / p, 2)
+   return "%s %s" % (s, size_name[i])
+
+
+def run_cmd(command):
+    try:
+        return call(command, shell=True)
+    except KeyboardInterrupt:
+            raise Exception("Process interrupted")
+
+
+# 检查目录剩余存储空间
+def get_free_space_mb(folder):
+    st = os.statvfs(folder)
+    return st.f_bavail * st.f_frsize / 1024 // 1024
