@@ -61,7 +61,7 @@ class StockDict(Enum):
         'low_price': '最低价',
         'high_price': '最高价',
         'turnover': '成交额',
-        'percent': '涨跌幅',
+        'change': '涨跌幅',
         'price_change': '涨跌额',
         'updown': '涨跌金额',
 

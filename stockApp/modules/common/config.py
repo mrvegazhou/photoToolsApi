@@ -3,10 +3,11 @@ import copy
 import logging
 import re
 import platform
+import multiprocessing
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 
-from core.log.logger import get_module_logger
+from core.log.logger import get_module_logger  # pylint: disable=C0415
 
 
 class Config:
@@ -68,6 +69,7 @@ class Config:
             set_log_with_config(C.logging_config)
         C.register()
 
+NUM_USABLE_CPU = max(multiprocessing.cpu_count() - 2, 1)
 
 _default_config = {
     "provider_uri": "/Users/vega/workspace/codes/py_space/working/stockApi/stockApp/crontab/_datas",
@@ -79,6 +81,11 @@ _default_config = {
     # How many tasks belong to one process. Recommend 1 for high-frequency data and None for daily data.
     "maxtasksperchild": None,
 
+    "kernels": NUM_USABLE_CPU,
+
+    # If joblib_backend is None, use loky
+    "joblib_backend": "multiprocessing",
+
     "default_disk_cache": 1,  # 0:skip/1:use
 
     "mem_cache_size_limit": 500,
@@ -86,6 +93,15 @@ _default_config = {
     # memory cache expire second, only in used 'DatasetURICache' and 'client D.calendar'
     # default 1 hour
     "mem_cache_expire": 60 * 60,
+    # cache dir name
+    "dataset_cache_dir_name": "dataset_cache",
+    "features_cache_dir_name": "features_cache",
+
+    # in order to use cache
+    "redis_host": "127.0.0.1",
+    "redis_port": 6379,
+    "redis_task_db": 1,
+    "redis_password": None,
 
     # This value can be reset via qlib.init
     "logging_level": logging.DEBUG,
@@ -235,7 +251,7 @@ class QlibConfig(Config):
 
     def register(self):
         from ..workflow.expm import MLflowExpManager
-        from ..dataHandler.ops import register_all_ops  # pylint: disable=C0415
+        from ..dataHandler.ops import register_all_ops
         from ..dataHandler.data import register_all_wrappers  # pylint: disable=C0415
         # from ..workflow import R, QlibRecorder  # pylint: disable=C0415
         # from ..workflow.utils import experiment_exit_handler  # pylint: disable=C0415
@@ -252,6 +268,12 @@ class QlibConfig(Config):
         # experiment_exit_handler()
 
         self._registered = True
+
+    def get_kernels(self, freq: str):
+        """get number of processors given frequency"""
+        if isinstance(self["kernels"], Callable):
+            return self["kernels"](freq)
+        return self["kernels"]
 
 # global config
 C = QlibConfig(_default_config)

@@ -3,7 +3,7 @@ import sys
 sys.path.append("/Users/vega/workspace/codes/py_space/working/stockApi")
 from stockApp import app
 from core.log.logger import get_module_logger
-from stockApp.modules import init
+from stockApp.modules.init import init
 from stockApp.modules.dataHandler.dataset import DatasetH
 
 

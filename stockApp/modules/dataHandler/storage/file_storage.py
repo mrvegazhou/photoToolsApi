@@ -210,11 +210,12 @@ class DatabaseInstrumentStorage(InstrumentStorage):
         return len(self.data)
 
 
-class FileFeatureStorage(FeatureStorage):
+class DataBaseFeatureStorage(FileStorageMixin, FeatureStorage):
     def __init__(self, instrument: str, field: str, freq: str, provider_uri: dict = None, **kwargs):
-        super(FileFeatureStorage, self).__init__(instrument, field, freq, **kwargs)
+        super(DataBaseFeatureStorage, self).__init__(instrument, field, freq, **kwargs)
         self._provider_uri = None if provider_uri is None else C.DataPathManager.format_provider_uri(provider_uri)
-        self.file_name = f"{instrument.lower()}/{field.lower()}.{freq.lower()}.bin"
+        # 缓存路径
+        self.file_name = f"{instrument.lower()}/{field.lower()}.{freq.lower()}.h5"
 
     def clear(self):
         with self.uri.open("wb") as _:
@@ -222,6 +223,7 @@ class FileFeatureStorage(FeatureStorage):
 
     @property
     def data(self) -> pd.Series:
+        #  self[:] 调用了类的 __getitem__ 方法
         return self[:]
 
     def write(self, data_array: Union[List, np.ndarray], index: int = None) -> None:
@@ -256,30 +258,8 @@ class FileFeatureStorage(FeatureStorage):
                     _df = _df.reindex(range(_df.index.min(), _df.index.max() + 1))
                     _df["new"].fillna(_df["old"]).values.astype("<f").tofile(fp)
 
-    @property
-    def start_index(self) -> Union[int, None]:
-        if not self.uri.exists():
-            return None
-        with self.uri.open("rb") as fp:
-            index = int(np.frombuffer(fp.read(4), dtype="<f")[0])
-        return index
-
-    @property
-    def end_index(self) -> Union[int, None]:
-        if not self.uri.exists():
-            return None
-        # The next  data appending index point will be  `end_index + 1`
-        return self.start_index + len(self) - 1
-
     def __getitem__(self, i: Union[int, slice]) -> Union[Tuple[int, float], pd.Series]:
-        if not self.uri.exists():
-            if isinstance(i, int):
-                return None, None
-            elif isinstance(i, slice):
-                return pd.Series(dtype=np.float32)
-            else:
-                raise TypeError(f"type(i) = {type(i)}")
-
+        #
         storage_start_index = self.start_index
         storage_end_index = self.end_index
         with self.uri.open("rb") as fp:

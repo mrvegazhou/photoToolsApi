@@ -23,7 +23,12 @@ class DayTradingService(object):
         intraday = EastIntradayData()
         for idx, row in all_stocks_df.iterrows():
             code = row['code']
-            intraday_df = intraday.get_intraday_data(code, begin_date, end_date)
+            # 默认后复权
+            intraday_df = intraday.get_intraday_data(code, begin_date, end_date, ex_rights=2)
+            intraday_df = intraday_df.set_index("date", drop=False).sort_index()
+            unadjusted_df = intraday.get_intraday_data(code, begin_date, end_date, ex_rights=0)
+            unadjusted_df = unadjusted_df.set_index("date", drop=False).sort_index()
+            intraday_df['adj_factor'] = (intraday_df['open'].astype(float) / unadjusted_df['open'].astype(float)).round(2)
             intrady_item_list = []
             for i, intrady_item in intraday_df.iterrows():
                 intrady_dict = {
@@ -37,12 +42,12 @@ class DayTradingService(object):
                     'turnover_rate': intrady_item['turnover_rate'],
                     'volume': intrady_item['volume'],
                     'amplitude': intrady_item['amplitude'],
-                    'percent': intrady_item['percent'],
-                    'price_change': intrady_item['price_change']
+                    'change': intrady_item['change'],
+                    'price_change': intrady_item['price_change'],
+                    'adj_factor': intrady_item['adj_factor']
                 }
                 intrady_item_list.append(intrady_dict)
             res = DayTrading.add_trading_list(intrady_item_list)
-
 
     @staticmethod
     def get_recent_trading_date():
@@ -63,6 +68,13 @@ class DayTradingService(object):
                 today -= timedelta(days=1)
                 now = today.strftime('%Y%m%d')
         return now
+
+    @staticmethod
+    def get_feature_percen_datas(code, start_date, end_date) -> pd.DataFrame:
+        # 获取日期范围内涨跌幅数据
+        datas = DayTrading.get_stock_trading_list_by_SQL(code, start_date, end_date)
+        pd.DataFrame.from_dict(datas, orient='records')['change', 'high_price', 'low_price', 'close', 'open', 'volume']
+
 
 
 if __name__ == '__main__':

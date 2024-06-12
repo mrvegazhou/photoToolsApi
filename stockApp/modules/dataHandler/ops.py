@@ -1652,7 +1652,9 @@ class OpsWrapper:
             raise AttributeError("The operator [{0}] is not registered".format(key))
         return self._ops[key]
 
+
 Operators = OpsWrapper()
+
 
 def register_all_ops(C):
     """register all operator"""

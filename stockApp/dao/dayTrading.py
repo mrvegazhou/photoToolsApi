@@ -44,8 +44,9 @@ class DayTrading:
                 'turnover': db.Column(Numeric, nullable=False, comment="成交额"),
                 'turnover_rate': db.Column(Numeric, nullable=False, comment="换手率=成交量(股)/流动股本(股)"),
                 'amplitude': db.Column(Numeric, nullable=False, comment="振幅"),
-                'percent': db.Column(Numeric, nullable=False, comment="涨跌幅=(现价-上一个交易日收盘价)/上一个交易日收盘价*100%"),
-                'price_change': db.Column(Numeric, nullable=False, comment="涨跌额")
+                'change': db.Column(Numeric, nullable=False, comment="涨跌幅=(现价-上一个交易日收盘价)/上一个交易日收盘价*100%"),
+                'price_change': db.Column(Numeric, nullable=False, comment="涨跌额"),
+                'adj_factor': db.Column(Numeric, nullable=False, comment="复权因子=后复权价格/不复权价格")
             })
             DayTrading._mapper[class_name] = ModelClass
 
@@ -64,8 +65,9 @@ class DayTrading:
             "turnover": self.turnover,
             "turnover_rate": self.turnover_rate,
             "amplitude": self.amplitude,
-            "percent": self.percent,
+            "change": self.change,
             "price_change": self.price_change,
+            "adj_factor": self.adj_factor,
         }
         return json.dumps(obj, cls=utils["common"].ComplexEncoder)
 
@@ -111,7 +113,7 @@ class DayTrading:
         else:
             cols = '*'
         result = db.session.connection().execute(db.text(
-            'select {cols} from {tbl_name} where code = :code and  trading_date =: trading_date order by trading_date desc'.format(
+            'select {cols} from {tbl_name} where code = :code and trading_date =: trading_date order by trading_date asc'.format(
                 cols=cols, tbl_name=tbl_name)),
             {'code': code, 'trading_date': date})
         return result.fetchone()
@@ -161,18 +163,20 @@ class DayTrading:
                   volume numeric,
                   turnover numeric,
                   amplitude numeric,
-                  percent numeric,
+                  change numeric,
                   price_change numeric,
-                  turnover_rate numeric
+                  turnover_rate numeric,
+                  adj_factor numeric
                 ) with (oids = false);
                 COMMENT on table "stock"."day_trading_{}" is '股票日交易行情';
                 COMMENT ON COLUMN stock.day_trading_{}.volume IS '成交量(股)';
                 COMMENT ON COLUMN stock.day_trading_{}.turnover IS '成交额';
                 COMMENT ON COLUMN stock.day_trading_{}.amplitude IS '振幅';
-                COMMENT ON COLUMN stock.day_trading_{}.percent IS '涨跌幅=(现价-上一个交易日收盘价)/上一个交易日收盘价*100%';
+                COMMENT ON COLUMN stock.day_trading_{}.change IS '涨跌幅=(现价-上一个交易日收盘价)/上一个交易日收盘价*100%';
                 COMMENT ON COLUMN stock.day_trading_{}.price_change IS '涨跌额';
                 COMMENT ON COLUMN stock.day_trading_{}.turnover_rate IS '换手率=成交量(股)/流动股本(股)';
-            '''.format(i, i, i, i, i, i, i, i)
+                COMMENT ON COLUMN stock.day_trading_{}.adj_factor IS '复权因子=后复权价格/不复权价格';
+            '''.format(i, i, i, i, i, i, i, i, i)
             db.session.execute(db.text(sql))
             db.session.commit()
 

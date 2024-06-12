@@ -1,13 +1,14 @@
 # coding:utf8
 import abc
+import random
 from ..config.stockDataConst import Constants, EastConfig
-from ...common.session import session
+from ..dataBase import DataBase
 
 
-class StockDataBase(metaclass=abc.ABCMeta):
+class StockDataBase(DataBase):
 
     def __init__(self):
-        self._session = session
+        super().__init__()
         self._headers = EastConfig.request_header.value
         self._code_id_dict = EastConfig.code_id_dict.value
 

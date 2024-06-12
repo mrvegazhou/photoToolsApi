@@ -26,8 +26,11 @@ class StockGroupService:
     def get_stock_code_date_list(name: str, start_time: Union[pd.Timestamp, str], end_time: Union[pd.Timestamp, str]) -> Dict[str, object]:
         stocks = StockGroupService.get_stock_group_list(name)
         res = {}
+        if isinstance(start_time, str):
+            start_time = pd.to_datetime(start_time)
         for item in stocks:
-            res[item.code] = [max(start_time, pd.Timestamp(item.IPO_date)), end_time]
+            start_time = max(start_time, pd.Timestamp(item.IPO_date))
+            res[item.code] = [start_time.strftime('%Y-%m-%d'), str(end_time)]
         return res
 
 

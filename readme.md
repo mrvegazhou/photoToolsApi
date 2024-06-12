@@ -98,3 +98,13 @@ Alpha158初始化的时候要加载 QlibDataLoader 到 data_loader
                             
  LocalDatasetProvider dataset
  DatasetProvider  inst_calculator
+ 
+
+QLIB名称       baostock名称
+change          pctChg       涨跌幅
+close           close       复权收盘价
+factor                      复权因子
+high            high        复权最高价
+low             low         复权最低价
+open            open        复权开盘价
+volume          volume       成交量

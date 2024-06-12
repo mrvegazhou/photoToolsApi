@@ -122,7 +122,7 @@ class EastConfig(Enum):
         'volume': 'f56',   # 成交量,
         'turnover': 'f57',   # 成交额,
         'amplitude': 'f58',   # 振幅,
-        'percent': 'f59',   # 涨跌幅,
+        'change': 'f59',   # 涨跌幅,
         'price_change': 'f60',   # 涨跌额,
         'turnover_rate': 'f61',   # 换手率,
     }
@@ -161,7 +161,7 @@ class EastConfig(Enum):
         'turnover': 'f48', # 今日成交金额
 
         'buy_volume': 'f49', # 买入数量
-        'percent': 'f50', # 涨跌幅
+        'change': 'f50', # 涨跌幅
         # 'updown': 'f4', # 涨跌金额
         'sell_volume': 'f59', # 卖出数量
         'p_e_ratio': 'f52', # 市盈率
@@ -227,7 +227,7 @@ class EastConfig(Enum):
         'date': 'TRADE_DATE', #上榜日期
         'explain': 'EXPLAIN', #解读
         'close': 'CLOSE_PRICE', #收盘价
-        'percent': 'CHANGE_RATE', #涨跌幅
+        'change': 'CHANGE_RATE', #涨跌幅
         'turnover_rate': 'TURNOVERRATE', #换手率
         'billboard_net_amt': 'BILLBOARD_NET_AMT', #龙虎榜净买额
         'billboard_buy_amt': 'BILLBOARD_BUY_AMT', #龙虎榜买入额
@@ -262,7 +262,7 @@ class EastConfig(Enum):
         'large_order_net_inflow_ratio': 'f60', # 大单流入净占比',
         'extra_large_order_net_inflow_ratio': 'f61', # 超大单流入净占比',
         'close': 'f62', # 收盘价',
-        'percent': 'f63', # 涨跌幅',
+        'change': 'f63', # 涨跌幅',
     }
 
     # 财务 业绩快报
@@ -341,7 +341,7 @@ class EastConfig(Enum):
         'code': '代码',
         'name': '名称',
         'close': '收盘价',
-        'percent': '涨跌幅',
+        'change': '涨跌幅',
         'price_change': '涨跌额',
         'volume': '成交量',
         'turnover': '成交额',
@@ -828,7 +828,7 @@ class SinaConfig(Enum):
         'volume': 8,
         'turnover': 9,
 
-        # 'percent': '涨跌幅',
+        # 'change': '涨跌幅',
         # 'updown': '涨跌金额',
 
         'bid_vol_1': 10,
@@ -928,7 +928,7 @@ class NetEaseConfig(Enum):
         'volume': 'volume', # 成交量
         'turnover': 'turnover', # 成交额
 
-        'percent': 'percent',
+        'change': 'percent',
         'updown': 'updown',
 
         'bid_vol_1': 'bidvol1',
@@ -977,7 +977,7 @@ class TencentConfig(Enum):
         'volume': 36,  # 成交量
         'turnover': 37,  # 成交额
         'turnover_rate': 38,
-        'percent': 32,
+        'change': 32,
         'updown': 31,
         'out_trade': 7,
         'in_trade': 8,

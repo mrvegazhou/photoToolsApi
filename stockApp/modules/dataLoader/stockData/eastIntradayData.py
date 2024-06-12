@@ -25,7 +25,7 @@ class EastIntradayData(StockDataBase):
         return Constants.INTRADY_DATA_URL.value
 
     def get_intraday_data(self, codes: Union[str, List[str]], begin: str = '19000101', end: str = '20500101',
-                          interval: str = '101', ex_rights: int = 1):
+                          interval: str = '101', ex_rights: int = 2):
         '''
         获取股票、ETF、债券的 K 线数据
 
@@ -50,7 +50,7 @@ class EastIntradayData(StockDataBase):
             - ``103`` : 月
 
         ex_rights : int, optional
-            复权方式，默认为 ``1`` ，可选示例如下
+            复权方式，默认为 ``2`` ，可选示例如下
 
             - ``0`` : 不复权
             - ``1`` : 前复权

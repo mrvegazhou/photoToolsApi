@@ -11,13 +11,17 @@ import queue
 import bisect
 import numpy as np
 import pandas as pd
+# For supporting multiprocessing in outer code, joblib is used
+from joblib import delayed
 from typing import List, Union, Optional
+from stockApp.modules.common.paral import ParallelExt
 from stockApp.modules.common import Wrapper, hash_args, normalize_cache_fields
-from stockApp.modules.dataHandler.cache import H
+from stockApp.modules.dataHandler.cache import H, DiskDatasetCache
 from core.log.logger import get_module_logger
-from stockApp.modules.dataHandler.storage.file_storage import DatabaseCalendarStorage, DatabaseInstrumentStorage, FileFeatureStorage
+from stockApp.modules.dataHandler.storage.file_storage import DatabaseCalendarStorage, DatabaseInstrumentStorage, DataBaseFeatureStorage
 from stockApp.modules.common import parse_field, time_to_slc_point
 from stockApp.modules.common.config import C
+from .ops import Operators
 
 
 class CalendarProvider:
@@ -147,7 +151,7 @@ class CalendarProvider:
             list of timestamps
         """
         try:
-            backend_obj = DatabaseCalendarStorage(freq=freq, future=future).data
+            obj = DatabaseCalendarStorage(freq=freq, future=future).data
         except ValueError:
             if future:
                 get_module_logger("data").warning(
@@ -156,11 +160,11 @@ class CalendarProvider:
                 get_module_logger("data").warning(
                     "You can get future calendar by referring to the following document: https://github.com/microsoft/qlib/blob/main/scripts/data_collector/contrib/README.md"
                 )
-                backend_obj = self.backend_obj(freq=freq, future=False).data
+                backend_obj = self.obj(freq=freq, future=False).data
             else:
                 raise
 
-        return [pd.Timestamp(x) for x in backend_obj]
+        return [pd.Timestamp(x) for x in obj]
 
 
 class PITProvider:
@@ -296,7 +300,7 @@ class FeatureProvider:
             data of a certain feature
         """
         field = str(field)[1:]
-        return FileFeatureStorage(instrument=instrument, field=field, freq=freq)[start_index: end_index + 1]
+        return DataBaseFeatureStorage(instrument=instrument, field=field, freq=freq)[start_index: end_index + 1]
 
 
 class InstrumentProvider:
@@ -382,15 +386,12 @@ class InstrumentProvider:
 
         _instruments_filtered = {
             inst: list(
-                filter(
-                    lambda x: x[0] <= x[1],
-                    [(max(start_time, pd.Timestamp(x[0])), min(end_time, pd.Timestamp(x[1]))) for x in spans],
-                )
+                filter(lambda x: spans[0] <= spans[1], [max(start_time, pd.Timestamp(spans[0])), min(end_time, pd.Timestamp(spans[1]))])
             )
             for inst, spans in _instruments.items()
         }
-
         _instruments_filtered = {key: value for key, value in _instruments_filtered.items() if value}
+
         # filter
         filter_pipe = instruments["filter_pipe"]
         for filter_config in filter_pipe:
@@ -428,7 +429,10 @@ class DatasetProvider(abc.ABC):
     Provide Dataset data.
     """
 
-    # @abc.abstractmethod
+    def __init__(self, align_time: bool = True):
+        super().__init__()
+        self.align_time = align_time
+
     def dataset(self, instruments, fields, start_time=None, end_time=None, freq="day", inst_processors=[]):
         """Get dataset data.
 
@@ -473,7 +477,6 @@ class DatasetProvider(abc.ABC):
         )
 
         return data
-
 
     @staticmethod
     def get_instruments_d(instruments, freq, start_time=None, end_time=None):
@@ -556,6 +559,7 @@ class DatasetProvider(abc.ABC):
             data = pd.concat(new_data, names=["instrument"], sort=False)
             data = DiskDatasetCache.cache_to_origin_data(data, column_names)
         else:
+            # 空值
             data = pd.DataFrame(
                 index=pd.MultiIndex.from_arrays([[], []], names=("instrument", "datetime")),
                 columns=column_names,
@@ -655,6 +659,7 @@ class BaseProvider:
         except TypeError:
             return DatasetD.dataset(instruments, fields, start_time, end_time, freq, inst_processors=inst_processors)
 
+
 class ExpressionProvider:
     """Expression provider class
 
@@ -682,7 +687,6 @@ class ExpressionProvider:
             raise
         return expression
 
-    # @abc.abstractmethod
     def expression(self, instrument, field, start_time=None, end_time=None, freq="day") -> pd.Series:
         """Get Expression data.
 

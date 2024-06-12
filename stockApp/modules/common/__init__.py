@@ -1,6 +1,8 @@
 import hashlib
 import json
 import re
+import copy
+import redis
 from typing import List, Union, Optional, Callable
 import numpy as np
 import pandas as pd
@@ -14,7 +16,20 @@ from .mod import (
     # class_casting,
 )
 
+
 is_deprecated_lexsorted_pandas = version.parse(pd.__version__) > version.parse("1.3.0")
+
+
+def get_redis_connection():
+    from .config import C
+    """get redis connection instance."""
+    return redis.StrictRedis(
+        host=C.redis_host,
+        port=C.redis_port,
+        db=C.redis_task_db,
+        password=C.redis_password,
+    )
+
 
 #################### Wrapper 延迟初始化 #####################
 class Wrapper:
@@ -162,3 +177,19 @@ def normalize_cache_fields(fields: [list, tuple]):
     :return: list
     """
     return sorted(remove_repeat_field(remove_fields_space(fields)))
+
+
+def normalize_cache_instruments(instruments):
+    """normalize cache instruments
+
+    :return: list or dict
+    """
+    if isinstance(instruments, (list, tuple, pd.Index, np.ndarray)):
+        instruments = sorted(list(instruments))
+    else:
+        # dict type stockpool
+        if "market" in instruments:
+            pass
+        else:
+            instruments = {k: sorted(v) for k, v in instruments.items()}
+    return instruments
