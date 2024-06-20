@@ -60,3 +60,4 @@ cache = Cache()
 # admin = Blueprint('admin', 'admin')
 # finance = Blueprint('finance', 'finance')
 
+

@@ -47,6 +47,15 @@ class Config:
     PAGE_LIMIT = 10
     DEFAULT_PAGE = 1
 
+    '''
+    redis
+    '''
+    REDIS_HOST = '127.0.0.1'
+    REDIS_PORT = 6379
+    REDIS_PASSWORD = ''
+    REDIS_DB = 0
+    REDIS_DEFAULT_TIMEOUT = 300
+    REDIS_KEY_PREFIX = ''
 
 class DevConfig(Config):
     ENV = "development"

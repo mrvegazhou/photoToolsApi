@@ -18,7 +18,7 @@ from stockApp.modules.common.paral import ParallelExt
 from stockApp.modules.common import Wrapper, hash_args, normalize_cache_fields
 from stockApp.modules.dataHandler.cache import H, DiskDatasetCache
 from core.log.logger import get_module_logger
-from stockApp.modules.dataHandler.storage.file_storage import DatabaseCalendarStorage, DatabaseInstrumentStorage, DataBaseFeatureStorage
+from stockApp.modules.dataHandler.storage.file_storage import FileCalendarStorage, FileInstrumentStorage, FileFeatureStorage
 from stockApp.modules.common import parse_field, time_to_slc_point
 from stockApp.modules.common.config import C
 from .ops import Operators
@@ -30,7 +30,7 @@ class CalendarProvider:
     Provide calendar data.
     """
 
-    def calendar(self, start_time=None, end_time=None, freq="day", future=False):
+    def calendar(self, start_time=None, end_time=None, freq="day"):
         """Get calendar of certain market in given time range.
 
         Parameters
@@ -49,7 +49,7 @@ class CalendarProvider:
         list
             calendar list
         """
-        _calendar, _calendar_index = self._get_calendar(freq, future)
+        _calendar, _calendar_index = self._get_calendar(freq, start_time, end_time)
         if start_time == "None":
             start_time = None
         if end_time == "None":
@@ -67,11 +67,11 @@ class CalendarProvider:
                 return np.array([])
         else:
             end_time = _calendar[-1]
-        _, _, si, ei = self.locate_index(start_time, end_time, freq, future)
+        _, _, si, ei = self.locate_index(start_time, end_time, freq)
         return _calendar[si : ei + 1]
 
     def locate_index(
-        self, start_time: Union[pd.Timestamp, str], end_time: Union[pd.Timestamp, str], freq: str, future: bool = False
+        self, start_time: Union[pd.Timestamp, str], end_time: Union[pd.Timestamp, str], freq: str
     ):
         """Locate the start time index and end time index in a calendar under certain frequency.
 
@@ -99,7 +99,7 @@ class CalendarProvider:
         """
         start_time = pd.Timestamp(start_time)
         end_time = pd.Timestamp(end_time)
-        calendar, calendar_index = self._get_calendar(freq=freq, future=future)
+        calendar, calendar_index = self._get_calendar(freq=freq, start_time=start_time, end_time=end_time)
         if start_time not in calendar_index:
             try:
                 start_time = calendar[bisect.bisect_left(calendar, start_time)]
@@ -113,15 +113,13 @@ class CalendarProvider:
         end_index = calendar_index[end_time]
         return start_time, end_time, start_index, end_index
 
-    def _get_calendar(self, freq, future):
+    def _get_calendar(self, freq, start_time, end_time):
         """Load calendar using memcache.
 
         Parameters
         ----------
         freq : str
             frequency of read calendar file.
-        future : bool
-            whether including future trading day.
 
         Returns
         -------
@@ -130,41 +128,31 @@ class CalendarProvider:
         dict
             dict composed by timestamp as key and index as value for fast search.
         """
-        flag = f"{freq}_future_{future}"
+        flag = f"{freq}_"
         if flag not in H["c"]:
-            _calendar = np.array(self.load_calendar(freq, future))
+            _calendar = np.array(self.load_calendar(freq, start_time, end_time))
             _calendar_index = {x: i for i, x in enumerate(_calendar)}  # for fast search
             H["c"][flag] = _calendar, _calendar_index
         return H["c"][flag]
 
-    def load_calendar(self, freq, future):
+    def load_calendar(self, freq, start_time, end_time):
         """Load original calendar timestamp from file.
 
         Parameters
         ----------
         freq : str
             frequency of read calendar file.
-        future: bool
         Returns
         ----------
         list
             list of timestamps
         """
         try:
-            obj = DatabaseCalendarStorage(freq=freq, future=future).data
+            datas = FileCalendarStorage(freq=freq, start_time=start_time, end_time=end_time).data
         except ValueError:
-            if future:
-                get_module_logger("data").warning(
-                    f"load calendar error: freq={freq}, future={future}; return current calendar!"
-                )
-                get_module_logger("data").warning(
-                    "You can get future calendar by referring to the following document: https://github.com/microsoft/qlib/blob/main/scripts/data_collector/contrib/README.md"
-                )
-                backend_obj = self.obj(freq=freq, future=False).data
-            else:
-                raise
+            raise
 
-        return [pd.Timestamp(x) for x in obj]
+        return [pd.Timestamp(x) for x in datas]
 
 
 class PITProvider:
@@ -300,7 +288,7 @@ class FeatureProvider:
             data of a certain feature
         """
         field = str(field)[1:]
-        return DataBaseFeatureStorage(instrument=instrument, field=field, freq=freq)[start_index: end_index + 1]
+        return FileFeatureStorage(instrument=instrument, field=field, freq=freq)[start_index : end_index + 1]
 
 
 class InstrumentProvider:
@@ -386,7 +374,10 @@ class InstrumentProvider:
 
         _instruments_filtered = {
             inst: list(
-                filter(lambda x: spans[0] <= spans[1], [max(start_time, pd.Timestamp(spans[0])), min(end_time, pd.Timestamp(spans[1]))])
+                filter(
+                    lambda x: x[0] <= x[1],
+                    [(max(start_time, pd.Timestamp(x[0])), min(end_time, pd.Timestamp(x[1]))) for x in spans],
+                )
             )
             for inst, spans in _instruments.items()
         }
@@ -405,7 +396,7 @@ class InstrumentProvider:
         return _instruments_filtered
 
     def _load_instruments(self, market, freq, start_time=None, end_time=None):
-        return DatabaseInstrumentStorage(market=market, freq=freq, start_time=start_time, end_time=end_time).data
+        return FileInstrumentStorage(market=market, freq=freq).data
 
     # instruments type
     LIST = "LIST"
@@ -587,10 +578,12 @@ class DatasetProvider(abc.ABC):
             obj[field] = ExpressionD.expression(inst, field, start_time, end_time, freq)
 
         data = pd.DataFrame(obj)
+
         if not data.empty and not np.issubdtype(data.index.dtype, np.dtype("M")):
             # If the underlaying provides the data not in datatime formmat, we'll convert it into datetime format
             _calendar = Cal.calendar(freq=freq)
             data.index = _calendar[data.index.values.astype(int)]
+
         data.index.names = ["datetime"]
 
         if not data.empty and spans is not None:
@@ -651,7 +644,8 @@ class BaseProvider:
         is a provider class.
         """
         disk_cache = C.default_disk_cache if disk_cache is None else disk_cache
-        fields = list(fields)  # In case of tuple.
+        # 整个因子字段
+        fields = list(fields)
         try:
             return DatasetD.dataset(
                 instruments, fields, start_time, end_time, freq, disk_cache, inst_processors=inst_processors
@@ -728,7 +722,7 @@ class ExpressionProvider:
         # - Index-based expression: this may save a lot of memory because the datetime index is not saved on the disk
         # - Data with datetime index expression: this will make it more convenient to integrating with some existing databases
         if self.time2idx:
-            _, _, start_index, end_index = Cal.locate_index(start_time, end_time, freq=freq, future=False)
+            _, _, start_index, end_index = Cal.locate_index(start_time, end_time, freq=freq)
             lft_etd, rght_etd = expression.get_extended_window_size()
             query_start, query_end = max(0, start_index - lft_etd), end_index + rght_etd
         else:

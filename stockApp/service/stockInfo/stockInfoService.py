@@ -101,24 +101,31 @@ class StockInfoService(object):
         pass
 
 
+    @classmethod
+    def get_all_stocks(cls):
+        StockInfo.get_all_stock_codes()
+
+
+
 if __name__ == '__main__':
 
     import json
     with app.app_context():
-        json_string = '{"uuid": null, "name": "\u8054\u5efa\u5149\u7535", "code": "300269", "is_st": 1, "is_suspended": 1,"is_newly_issued": 1, "total_market_value": 12345678901234567890.1234567890, "floating_market_value": 14299999999999994541318.129000000000000000000000009999,"total_share_capital": 14299999999999994541318.129000000000000000000000009999, "floating_shares":14299999999999994541318.129000000000000000000000009999, "IPO_date": "2011-10-12"}'
-        data = json.loads(json_string)
-        info = StockInfo()
-        info.uuid = data['uuid']
-        info.name = data['name']
-        info.code = data['code']
-        info.is_st = data['is_st']
-        info.is_suspended = data['is_suspended']
-        info.is_newly_issued = data['is_newly_issued']
-        info.total_market_value = data['total_market_value']
-        info.floating_market_value = data['floating_market_value']
-        info.total_share_capital = data['total_share_capital']
-        info.floating_shares = data['floating_shares']
-        info.IPO_date = data['IPO_date']
-        objs = [info]
-        res = StockInfo.add_new_stock_list(objs)
-        print(res)
+        # json_string = '{"uuid": null, "name": "\u8054\u5efa\u5149\u7535", "code": "300269", "is_st": 1, "is_suspended": 1,"is_newly_issued": 1, "total_market_value": 12345678901234567890.1234567890, "floating_market_value": 14299999999999994541318.129000000000000000000000009999,"total_share_capital": 14299999999999994541318.129000000000000000000000009999, "floating_shares":14299999999999994541318.129000000000000000000000009999, "IPO_date": "2011-10-12"}'
+        # data = json.loads(json_string)
+        # info = StockInfo()
+        # info.uuid = data['uuid']
+        # info.name = data['name']
+        # info.code = data['code']
+        # info.is_st = data['is_st']
+        # info.is_suspended = data['is_suspended']
+        # info.is_newly_issued = data['is_newly_issued']
+        # info.total_market_value = data['total_market_value']
+        # info.floating_market_value = data['floating_market_value']
+        # info.total_share_capital = data['total_share_capital']
+        # info.floating_shares = data['floating_shares']
+        # info.IPO_date = data['IPO_date']
+        # objs = [info]
+        # res = StockInfo.add_new_stock_list(objs)
+        # print(res)
+        print(StockInfo.get_all_stock_codes())

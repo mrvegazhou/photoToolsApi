@@ -108,3 +108,8 @@ high            high        复权最高价
 low             low         复权最低价
 open            open        复权开盘价
 volume          volume       成交量
+
+
+下载数据 并标准化 /Users/vega/workspace/codes/py_space/案例/股票/qlib/scripts/data_collector/base.py
+def _executor(self, file_path: Path):
+YahooNormalizeCN1dExtend normalize(df)

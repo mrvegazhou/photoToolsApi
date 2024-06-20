@@ -86,9 +86,10 @@ class CalendarStorage(BaseStorage):
     The behavior of CalendarStorage's methods and List's methods of the same name remain consistent
     """
 
-    def __init__(self, freq: str, future: bool, **kwargs):
+    def __init__(self, freq: str, start_time: str, end_time: str, **kwargs):
         self.freq = freq
-        self.future = future
+        self.start_time = start_time
+        self.end_time = end_time
         self.kwargs = kwargs
 
     @property

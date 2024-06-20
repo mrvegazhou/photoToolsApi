@@ -13,7 +13,7 @@ def sync_stock_info():
     # 获取当前交易日
 
     last_day_file_name = get_last_n_date(1) + ".json"
-    file_path = '/Users/vega/workspace/codes/py_space/working/stockApi/stockApp/crontab/_datas/stocks/{}'
+    file_path = '/crontab/_datas2/stocks/{}'
     if not os.path.exists(file_path):
         all_stocks_df = StockInfoService.get_remote_stocks_codes()
         all_stocks_df.to_json(file_path.format(file_name), orient='records', lines=True)

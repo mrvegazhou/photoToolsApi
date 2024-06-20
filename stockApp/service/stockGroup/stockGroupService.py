@@ -24,13 +24,22 @@ class StockGroupService:
 
     @staticmethod
     def get_stock_code_date_list(name: str, start_time: Union[pd.Timestamp, str], end_time: Union[pd.Timestamp, str]) -> Dict[str, object]:
-        stocks = StockGroupService.get_stock_group_list(name)
-        res = {}
+        if name:
+            stocks = StockGroupService.get_stock_group_list(name)
+        else:
+            stocks = StockInfo.get_all_stocks()
+
+        res = []
         if isinstance(start_time, str):
             start_time = pd.to_datetime(start_time)
+
         for item in stocks:
-            start_time = max(start_time, pd.Timestamp(item.IPO_date))
-            res[item.code] = [start_time.strftime('%Y-%m-%d'), str(end_time)]
+            st = max(start_time, pd.Timestamp(item.IPO_date))
+            if pd.Timestamp(end_time) < st:
+                et = st.strftime('%Y-%m-%d')
+            else:
+                et = pd.Timestamp(end_time).strftime('%Y-%m-%d')
+            res.append([item.code, st.strftime('%Y-%m-%d'), str(et)])
         return res
 
 

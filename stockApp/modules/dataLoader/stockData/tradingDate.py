@@ -56,15 +56,12 @@ class TradingDate(StockDataBase):
         return js_code.call("d", r.text.split("=")[1].split(";")[0].replace('"', ""))
 
     def _format_trading_date_list_response_data(self, date_list):
+        temp_list = [datetime.datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%fZ').strftime('%Y%m%d')
+                           for date_str in date_list]
+        temp_list.append('19920504')
         temp_df = pd.DataFrame(date_list)
-        temp_df.columns = ["trade_date"]
-        temp_df["trade_date"] = pd.to_datetime(temp_df["trade_date"]).dt.date
-        temp_list = temp_df["trade_date"].to_list()
-        # 该日期是交易日，但是在新浪返回的交易日历缺失该日期，这里补充上
-        temp_list.append(datetime.date(year=1992, month=5, day=4))
+        temp_df.columns = ["trading_date"]
+        temp_df["trading_date"] = pd.to_datetime(temp_df["trading_date"]).dt.date
         temp_list.sort()
-        temp_df = pd.DataFrame(temp_list, columns=["trade_date"])
         temp_df = temp_df.dropna()
-        temp_df['trade_date'] = pd.to_datetime(temp_df['trade_date'])
-        temp_df['trade_date'] = temp_df['trade_date'].dt.strftime('%Y%m%d')
         return temp_df

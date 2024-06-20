@@ -2,17 +2,18 @@
 import struct
 from pathlib import Path
 from typing import Iterable, Union, Dict, Mapping, Tuple, List, Text
-
+import re
 import numpy as np
 import pandas as pd
 
-from service.stockGroup.stockGroupService import StockGroupService
+from service.dayTrading.dayTradingService import DayTradingService
 from stockApp.modules.common.time import Freq
 from stockApp.modules.common.resam import resam_calendar
 from stockApp.modules.common.config import C
 from ..cache import H
 from core.log.logger import get_module_logger
-from . import CalendarStorage, InstrumentStorage, FeatureStorage, CalVT, InstKT, InstVT
+from . import CalendarStorage, InstrumentStorage, FeatureStorage
+from ...common.hepler import get_stock_type
 
 logger = get_module_logger("file_storage")
 
@@ -26,6 +27,16 @@ class FileStorageMixin:
     # NOTE: provider_uri priority:
     #   1. self._provider_uri : if provider_uri is provided.
     #   2. provider_uri in qlib.config.C
+    @property
+    def store_path(self) -> Path:
+        return Path(self.dpm.get_data_uri(C.DEFAULT_FREQ), self.file_name)
+
+    @property
+    def file_name(self):
+        if 'h5' in C:
+            return C['h5']
+        else:
+            return 'store.h5'
 
     @property
     def provider_uri(self):
@@ -46,10 +57,9 @@ class FileStorageMixin:
             return getattr(self, _v)
         # 如果provider_uri内包含__DEFAULT_FREQ 这是默认配置
         if len(self.provider_uri) == 1 and C.DEFAULT_FREQ in self.provider_uri:
-            freq_l = filter(
-                lambda _freq: not _freq.endswith("_future"),
-                map(lambda x: x.stem, self.dpm.get_data_uri(C.DEFAULT_FREQ).joinpath("calendars").glob("*.txt")),
-            )
+            with pd.HDFStore(self.store_path, 'r') as store:
+                filtered_keys = [key for key in store.keys() if 'calendars' in key]
+                freq_l = [sublist[2] for key in filtered_keys for sublist in [key.split('/')]]
         else:
             freq_l = self.provider_uri.keys()
         freq_l = [Freq(freq) for freq in freq_l]
@@ -60,7 +70,8 @@ class FileStorageMixin:
     def uri(self) -> Path:
         if self.freq not in self.support_freq:
             raise ValueError(f"{self.storage_name}: {self.provider_uri} does not contain data for {self.freq}")
-        return self.dpm.get_data_uri(self.freq).joinpath(f"{self.storage_name}s", self.file_name)
+        # get_data_uri方法里包括了config的provider_uri
+        return self.dpm.get_data_uri(self.freq).joinpath(self.file_name)
 
     def check(self):
         """check self.uri
@@ -73,17 +84,12 @@ class FileStorageMixin:
             raise ValueError(f"{self.storage_name} not exists: {self.uri}")
 
 
-class DatabaseCalendarStorage(FileStorageMixin, CalendarStorage):
-    def __init__(self, freq: str, future: bool, provider_uri: dict = None, **kwargs):
-        super(DatabaseCalendarStorage, self).__init__(freq, future, **kwargs)
-        self.future = future
-        self.enable_read_cache = True  # TODO: make it configurable
+class FileCalendarStorage(FileStorageMixin, CalendarStorage):
+    def __init__(self, freq: str, provider_uri: dict = None, **kwargs):
+        super(FileCalendarStorage, self).__init__(freq, **kwargs)
         self._provider_uri = None if provider_uri is None else C.DataPathManager.format_provider_uri(provider_uri)
-
-    @property
-    def file_name(self) -> str:
-        # future 为期货
-        return f"{self._freq_file}_future.txt" if self.future else f"{self._freq_file}.txt".lower()
+        self.enable_read_cache = True  # TODO: make it configurable
+        self.key = f"{self.storage_name}s/{self.freq}"
 
     @property
     def _freq_file(self) -> str:
@@ -102,33 +108,17 @@ class DatabaseCalendarStorage(FileStorageMixin, CalendarStorage):
             self._freq_file_cache = freq
         return self._freq_file_cache
 
-    def _read_calendar(self) -> List[CalVT]:
-        # NOTE:
-        # if we want to accelerate partial reading calendar
-        # we can add parameters like `skip_rows: int = 0, n_rows: int = None` to the interface.
-        # Currently, it is not supported for the txt-based calendar
-        if not self.uri.exists():
-            self._write_calendar(values=[])
-
-        with self.uri.open("r") as fp:
+    def _read_calendar(self) -> List[str]:
+        with pd.HDFStore(self.store_path, mode='r') as store:
             res = []
-            for line in fp.readlines():
-                line = line.strip()
-                if len(line) > 0:
-                    res.append(line)
-            return res
-
-    def _write_calendar(self, values: Iterable[CalVT], mode: str = "wb"):
-        with self.uri.open(mode=mode) as fp:
-            np.savetxt(fp, values, fmt="%s", encoding="utf-8")
-
+            if f"/{self.key}" in store.keys():
+                df = store[self.key]
+                for row in df.itertuples(index=False):
+                    res.append(row.date)
+                return res
     @property
-    def uri(self) -> Path:
-        return self.dpm.get_data_uri(self._freq_file).joinpath(f"{self.storage_name}s", self.file_name)
-
-    @property
-    def data(self) -> List[CalVT]:
-        # self.check()
+    def data(self) -> List[str]:
+        self.check()
         # If cache is enabled, then return cache directly
         if self.enable_read_cache:
             key = "orig_file" + str(self.uri)
@@ -146,41 +136,7 @@ class DatabaseCalendarStorage(FileStorageMixin, CalendarStorage):
     def _get_storage_freq(self) -> List[str]:
         return sorted(set(map(lambda x: x.stem.split("_")[0], self.uri.parent.glob("*.txt"))))
 
-    def extend(self, values: Iterable[CalVT]) -> None:
-        self._write_calendar(values, mode="ab")
-
-    def clear(self) -> None:
-        self._write_calendar(values=[])
-
-    def index(self, value: CalVT) -> int:
-        self.check()
-        calendar = self._read_calendar()
-        return int(np.argwhere(calendar == value)[0])
-
-    def insert(self, index: int, value: CalVT):
-        calendar = self._read_calendar()
-        calendar = np.insert(calendar, index, value)
-        self._write_calendar(values=calendar)
-
-    def remove(self, value: CalVT) -> None:
-        self.check()
-        index = self.index(value)
-        calendar = self._read_calendar()
-        calendar = np.delete(calendar, index)
-        self._write_calendar(values=calendar)
-
-    def __setitem__(self, i: Union[int, slice], values: Union[CalVT, Iterable[CalVT]]) -> None:
-        calendar = self._read_calendar()
-        calendar[i] = values
-        self._write_calendar(values=calendar)
-
-    def __delitem__(self, i: Union[int, slice]) -> None:
-        self.check()
-        calendar = self._read_calendar()
-        calendar = np.delete(calendar, i)
-        self._write_calendar(values=calendar)
-
-    def __getitem__(self, i: Union[int, slice]) -> Union[CalVT, List[CalVT]]:
+    def __getitem__(self, i: Union[int, slice]) -> Union[str, List[str]]:
         self.check()
         return self._read_calendar()[i]
 
@@ -188,99 +144,101 @@ class DatabaseCalendarStorage(FileStorageMixin, CalendarStorage):
         return len(self.data)
 
 
-class DatabaseInstrumentStorage(InstrumentStorage):
+class FileInstrumentStorage(FileStorageMixin, InstrumentStorage):
 
-    def __init__(self, market: str, freq: str, start_time: Union[pd.Timestamp, str], end_time: Union[pd.Timestamp, str], **kwargs):
-        super(DatabaseInstrumentStorage, self).__init__(market, freq, **kwargs)
-        self.market = market
-        self.start_time = start_time
-        self.end_time = end_time
+    def __init__(self, market: str, freq: str, provider_uri: dict = None, **kwargs):
+        super(FileInstrumentStorage, self).__init__(market, freq, **kwargs)
+        self._provider_uri = None if provider_uri is None else C.DataPathManager.format_provider_uri(provider_uri)
+        self.key = f"{self.storage_name}s/{self.market}"
 
-    def _read_instrument(self, start_time: Union[pd.Timestamp, str], end_time: Union[pd.Timestamp, str]) -> Dict[Text, List[Tuple[str, str]]]:
-        return StockGroupService.get_stock_code_date_list(self.market, start_time, end_time)
+    def _read_instrument(self) -> Dict[Text, List[Tuple[str, str]]]:
+        _instruments = dict()
+        with pd.HDFStore(self.store_path, 'r') as store:
+            if f"/{self.key}" in store.keys():
+                df = store[self.key]
+                for row in df.itertuples(index=False):
+                    _instruments.setdefault(row[0], []).append((row[1], row[2]))
+        return _instruments
 
     @property
-    def data(self) -> Dict[InstKT, InstVT]:
-        return self._read_instrument(self.start_time, self.end_time)
+    def data(self) -> Dict[Text, List[Tuple[str, str]]]:
+        self.check()
+        return self._read_instrument()
 
-    def __getitem__(self, k: InstKT) -> InstVT:
+    def __getitem__(self, k: Text) -> List[Tuple[str, str]]:
         return self._read_instrument()[k]
 
     def __len__(self) -> int:
         return len(self.data)
 
 
-class DataBaseFeatureStorage(FileStorageMixin, FeatureStorage):
+class FileFeatureStorage(FileStorageMixin, FeatureStorage):
     def __init__(self, instrument: str, field: str, freq: str, provider_uri: dict = None, **kwargs):
-        super(DataBaseFeatureStorage, self).__init__(instrument, field, freq, **kwargs)
+        super(FileFeatureStorage, self).__init__(instrument, field, freq, **kwargs)
         self._provider_uri = None if provider_uri is None else C.DataPathManager.format_provider_uri(provider_uri)
-        # 缓存路径
-        self.file_name = f"{instrument.lower()}/{field.lower()}.{freq.lower()}.h5"
-
-    def clear(self):
-        with self.uri.open("wb") as _:
-            pass
+        prefix = get_stock_type(self.instrument)
+        self.key = f"{self.storage_name}s/{prefix}{self.instrument}"
 
     @property
     def data(self) -> pd.Series:
         #  self[:] 调用了类的 __getitem__ 方法
         return self[:]
 
-    def write(self, data_array: Union[List, np.ndarray], index: int = None) -> None:
-        if len(data_array) == 0:
-            logger.info(
-                "len(data_array) == 0, write"
-                "if you need to clear the FeatureStorage, please execute: FeatureStorage.clear"
-            )
-            return
-        if not self.uri.exists():
-            # write
-            index = 0 if index is None else index
-            with self.uri.open("wb") as fp:
-                np.hstack([index, data_array]).astype("<f").tofile(fp)
-        else:
-            if index is None or index > self.end_index:
-                # append
-                index = 0 if index is None else index
-                with self.uri.open("ab+") as fp:
-                    np.hstack([[np.nan] * (index - self.end_index - 1), data_array]).astype("<f").tofile(fp)
-            else:
-                # rewrite
-                with self.uri.open("rb+") as fp:
-                    _old_data = np.fromfile(fp, dtype="<f")
-                    _old_index = _old_data[0]
-                    _old_df = pd.DataFrame(
-                        _old_data[1:], index=range(_old_index, _old_index + len(_old_data) - 1), columns=["old"]
-                    )
-                    fp.seek(0)
-                    _new_df = pd.DataFrame(data_array, index=range(index, index + len(data_array)), columns=["new"])
-                    _df = pd.concat([_old_df, _new_df], sort=False, axis=1)
-                    _df = _df.reindex(range(_df.index.min(), _df.index.max() + 1))
-                    _df["new"].fillna(_df["old"]).values.astype("<f").tofile(fp)
+    @property
+    def start_index(self) -> Union[int, None]:
+        with pd.HDFStore(self.store_path, 'r') as store:
+            if f"/{self.key}" in store.keys():
+                df = store[self.key]
+                return df.index.get_level_values('id')[0]
+        return None
+
+    @property
+    def end_index(self) -> Union[int, None]:
+        with pd.HDFStore(self.store_path, 'r') as store:
+            if f"/{self.key}" in store.keys():
+                df = store[self.key]
+                return df.index.get_level_values('id')[-1]
+        return None
 
     def __getitem__(self, i: Union[int, slice]) -> Union[Tuple[int, float], pd.Series]:
-        #
-        storage_start_index = self.start_index
-        storage_end_index = self.end_index
-        with self.uri.open("rb") as fp:
+        with pd.HDFStore(self.store_path, 'r') as store:
+            if f"/{self.key}" not in store.keys():
+                if isinstance(i, int):
+                    return None, None
+                elif isinstance(i, slice):
+                    return pd.Series(dtype=np.float32)
+                else:
+                    raise TypeError(f"type(i) = {type(i)}")
+            df = store[self.key]
+            # 判断columns是否存在field
+            if self.field not in df.columns:
+                if isinstance(i, int):
+                    return None, None
+                elif isinstance(i, slice):
+                    return pd.Series(dtype=np.float32)
+
+            storage_start_index = self.start_index
+            storage_end_index = self.end_index
             if isinstance(i, int):
                 if storage_start_index > i:
                     raise IndexError(f"{i}: start index is {storage_start_index}")
-                fp.seek(4 * (i - storage_start_index) + 4)
-                return i, struct.unpack("f", fp.read(4))[0]
+                return i, df[df.index.get_level_values('id')==i][self.field]
             elif isinstance(i, slice):
                 start_index = storage_start_index if i.start is None else i.start
                 end_index = storage_end_index if i.stop is None else i.stop - 1
                 si = max(start_index, storage_start_index)
                 if si > end_index:
                     return pd.Series(dtype=np.float32)
-                fp.seek(4 * (si - storage_start_index) + 4)
                 # read n bytes
-                count = end_index - si + 1
-                data = np.frombuffer(fp.read(4 * count), dtype="<f")
-                return pd.Series(data, index=pd.RangeIndex(si, si + len(data)))
+                level_values = df.index.get_level_values('id')
+                df_reset = df[(level_values >= si) & (level_values <= end_index)][self.field]
+                df_reset = df_reset.reset_index(level='date', drop=True)
+                return df_reset
             else:
                 raise TypeError(f"type(i) = {type(i)}")
+
+    def _get_datas(self, i: Union[int, slice]):
+        DayTradingService.get_feature_datas(self.instrument)
 
     def __len__(self) -> int:
         self.check()

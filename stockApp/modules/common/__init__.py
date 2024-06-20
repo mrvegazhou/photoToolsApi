@@ -1,3 +1,5 @@
+import sys
+sys.path.append("/Users/vega/workspace/codes/py_space/working/stockApi")
 import hashlib
 import json
 import re
@@ -7,6 +9,7 @@ from typing import List, Union, Optional, Callable
 import numpy as np
 import pandas as pd
 from packaging import version
+from stockApp import app
 from .mod import (
     get_module_by_module_path,
     split_module_path,
@@ -24,10 +27,10 @@ def get_redis_connection():
     from .config import C
     """get redis connection instance."""
     return redis.StrictRedis(
-        host=C.redis_host,
-        port=C.redis_port,
-        db=C.redis_task_db,
-        password=C.redis_password,
+        host=C.redis_host if C.redis_host else app.config.get("REDIS_HOST", 'localhost'),
+        port=C.redis_port if C.redis_port else app.config.get("REDIS_PORT", 6379),
+        db=C.redis_task_db if C.redis_task_db else app.config.get("REDIS_DB", 0),
+        password=C.redis_password if C.redis_password else app.config.get("REDIS_PASSWORD", None),
     )
 
 

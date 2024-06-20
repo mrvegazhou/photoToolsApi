@@ -192,6 +192,7 @@ class Expression(abc.ABC):
                 f"error info: {str(e)}"
             )
             raise
+        # print(str(self), '======str(self)===xx')
         series.name = str(self)
         H["f"][cache_key] = series
         return series
@@ -237,6 +238,7 @@ class Feature(Expression):
     """
 
     def __init__(self, name=None):
+        # print(name, "---Feature name--")
         if name:
             self._name = name
         else:
@@ -249,7 +251,8 @@ class Feature(Expression):
         # load
         from .data import FeatureD  # pylint: disable=C0415
 
-        return FeatureD.feature(instrument, str(self), start_index, end_index, freq)
+        res = FeatureD.feature(instrument, str(self), start_index, end_index, freq)
+        return res
 
     def get_longest_back_rolling(self):
         return 0

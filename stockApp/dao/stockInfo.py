@@ -79,8 +79,9 @@ class StockInfo(Base):
             return None
         return StockInfo.query.filter(*filters).order_by(StockInfo.uuid.asc()).all()
 
-    def get_all_stock_codes(self):
-        return self.query.all()
+    @classmethod
+    def get_all_stocks(cls):
+        return StockInfo.query.all()
 
     @staticmethod
     def add_new_stock(obj):

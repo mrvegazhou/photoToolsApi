@@ -74,7 +74,7 @@ NUM_USABLE_CPU = max(multiprocessing.cpu_count() - 2, 1)
 _default_config = {
     "provider_uri": "/Users/vega/workspace/codes/py_space/working/stockApi/stockApp/crontab/_datas",
     "mount_path": '',
-
+    "h5": 'store.h5',
     # cache
     "expression_cache": None,
     "calendar_cache": None,

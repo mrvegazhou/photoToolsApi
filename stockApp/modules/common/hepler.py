@@ -10,7 +10,7 @@ def get_stock_type(stock_code) -> str:
         return 'sh'
     elif stock_code.startswith(('000', '001', '002')):
         return 'sz'
-    elif stock_code.startswith('300'):
+    elif stock_code.startswith('30'):
         return 'sz'
     elif stock_code.startswith(('83', '87')):  # 注意：北交所代码可能有所变化，这里只是示例
         return 'bj'

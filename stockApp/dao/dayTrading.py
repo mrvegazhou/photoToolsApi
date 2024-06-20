@@ -116,6 +116,7 @@ class DayTrading:
             'select {cols} from {tbl_name} where code = :code and trading_date =: trading_date order by trading_date asc'.format(
                 cols=cols, tbl_name=tbl_name)),
             {'code': code, 'trading_date': date})
+        print(str(query))
         return result.fetchone()
 
     @staticmethod
