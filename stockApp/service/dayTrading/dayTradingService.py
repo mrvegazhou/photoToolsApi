@@ -2,19 +2,24 @@
 import sys, os, inspect
 from decimal import Decimal
 
-from modules.dataHandler.normalize1d import Normalize1d
-
 PACKAGE_PARENT = '../../../'
 SCRIPT_DIR = os.path.dirname(
     os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(inspect.getfile(inspect.currentframe())))))
 sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
 import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta
 from stockApp import app
 from stockApp.modules.dataLoader.stockData.eastMarketRealTime import EastMarketRealTime
 from stockApp.modules.dataLoader.stockData.eastIntradayData import EastIntradayData
 from stockApp.modules.dataLoader.stockData.tradingDate import TradingDate
 from stockApp.dao.dayTrading import DayTrading
+from stockApp.modules.dataHandler.normalize1d import Normalize1d
+from stockApp.service.strategies.baseStrategy import BaseStrategy
+from core.log.logger import get_module_logger
+from stockApp.__init__ import utils
+
+logger = get_module_logger("DayTradingService")
 
 
 class DayTradingService(object):
@@ -25,13 +30,8 @@ class DayTradingService(object):
         all_stock_data = EastMarketRealTime()
         all_stocks_df = all_stock_data.get_market_real_time('沪深A')
         intraday = EastIntradayData()
-        print(all_stocks_df)
         for idx, row in all_stocks_df.iterrows():
             code = row['code']
-            print(code)
-            if code != '600083':
-                continue
-            print(code)
             # 默认后复权
             intraday_df = intraday.get_intraday_data(code, begin_date, end_date, ex_rights=2)
             intraday_df = intraday_df.set_index("date", drop=False).sort_index()
@@ -62,26 +62,48 @@ class DayTradingService(object):
             print(res, "---res---")
 
     @staticmethod
-    def get_recent_trading_date():
+    def get_recent_trading_date(date=None, shift=None):
+        """
+        获取交易日期
+
+        Parameters
+        ----------
+        date: 指定日期
+        shift: 比如滑动到前天的日期
+
+        Return
+        ------
+        """
         td = TradingDate()
         df = td.get_stock_trading_date_list()
+        if df.empty:
+            return None
 
-        today = datetime.today()
-        now = today.strftime('%Y%m%d')
+        common_util = utils['common']
+        if date and not common_util.is_date(date):
+            return None
 
-        exists = now in df['trading_date'].astype(str).values
-        if exists:
-            return now
+        if not date:
+            today = datetime.today()
+            now = today.strftime('%Y-%m-%d')
+        else:
+            last_row = df.iloc[-1]
+            date_obj = datetime.strptime(date, "%Y-%m-%d").date()
+            if last_row.trading_date < date_obj:
+                return None
+            first_row = df.iloc[0]
+            if first_row.trading_date > date_obj:
+                return None
+            now = date
 
-        date_found = False
-        while not date_found:
-            if now in df['trading_date'].astype(str).values:
-                date_found = True
-            else:
-                # 如果当前日期不在列中，获取上一天的日期
-                today -= timedelta(days=1)
-                now = today.strftime('%Y%m%d')
-        return now
+        df['trading_date'] = pd.to_datetime(df['trading_date'])
+        previous_rows = df[df['trading_date'] <= pd.to_datetime(now)]
+        idx = previous_rows.index[-1]
+        if shift:
+            idx = shift + idx
+            if idx < df.index[0] or idx > df.index[-1]:
+                return None
+        return df.iloc[idx]['trading_date'].strftime('%Y-%m-%d')
 
     @staticmethod
     def get_trading_dates(start_time: str, end_time: str) -> pd.DataFrame:
@@ -100,6 +122,15 @@ class DayTradingService(object):
 
     @classmethod
     def get_feature_datas(cls, code, start_date, end_date) -> pd.DataFrame:
+        """
+        获取股票的日交易列表 比如存储到hdf5
+
+        Parameters
+        ----------
+
+        Return
+        ------
+        """
         # 获取日期范围内涨跌幅数据
         datas = DayTrading.get_stock_trading_list_by_SQL(code, start_date, end_date)
         column_names = ['code', 'open', 'close', 'high_price', 'low_price', 'volume', 'change', 'adj_factor', 'trading_date']
@@ -119,15 +150,17 @@ class DayTradingService(object):
                 df.sort_index(inplace=True)
         else:
             df = pd.DataFrame(columns=column_names)
+
+        df['vwap'] = BaseStrategy.vwap(df)
         return df
 
 
 if __name__ == '__main__':
     with app.app_context():
-        dt = DayTrading()
-        print(dt.get_table('301567'))
+        # dt = DayTrading()
+        # print(dt.get_table('301567'))
     #     DayTrading.create_tables()
-        DayTradingService.get_remote_day_trading_data()
+        print(DayTradingService.get_recent_trading_date(shift=-2))
     #     df = DayTradingService.get_feature_datas('301231', '2023-01-03', '2024-06-05')
     #     print(df)
 

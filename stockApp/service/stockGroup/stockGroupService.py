@@ -24,6 +24,17 @@ class StockGroupService:
 
     @staticmethod
     def get_stock_code_date_list(name: str, start_time: Union[pd.Timestamp, str], end_time: Union[pd.Timestamp, str]) -> Dict[str, object]:
+        """
+        获取指定日期范围的股票日交易列表
+
+        Parameters
+        ----------
+        name: 股票组 比如 上证300
+
+        Return
+        ------
+        """
+
         if name:
             stocks = StockGroupService.get_stock_group_list(name)
         else:

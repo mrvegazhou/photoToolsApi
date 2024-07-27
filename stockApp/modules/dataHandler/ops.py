@@ -129,6 +129,20 @@ class Abs(NpElemOperator):
         super(Abs, self).__init__(feature, "abs")
 
 
+class SignCustom(ElemOperator):
+    def __init__(self, feature):
+        super(SignCustom, self).__init__(feature)
+
+    def _load_internal(self, instrument, start_index, end_index, *args):
+        """
+        To avoid error raised by bool type input, we transform the data into float32.
+        """
+        series = self.feature.load(instrument, start_index, end_index, *args)
+        series = series.astype(np.float32)
+        result = series.apply(lambda x: 1 if x > 0 else 2 if x < 0 else 0)
+        return result
+
+
 class Sign(NpElemOperator):
     """Feature Sign
 
@@ -266,6 +280,7 @@ class PairOperator(ExpressionOps):
         else:
             rl, rr = 0, 0
         return max(ll, rl), max(lr, rr)
+
 
 class NpPairOperator(PairOperator):
     """Numpy Pair-wise operator
@@ -1580,6 +1595,7 @@ OpsList = [
     Cov,
     Delta,
     Abs,
+    SignCustom,
     Sign,
     Log,
     Power,

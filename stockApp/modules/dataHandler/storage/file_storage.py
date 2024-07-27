@@ -1,12 +1,10 @@
 # coding:utf8
 import struct
 from pathlib import Path
-from typing import Iterable, Union, Dict, Mapping, Tuple, List, Text
-import re
+from typing import Union, Dict, Tuple, List, Text
 import numpy as np
 import pandas as pd
 
-from service.dayTrading.dayTradingService import DayTradingService
 from stockApp.modules.common.time import Freq
 from stockApp.modules.common.resam import resam_calendar
 from stockApp.modules.common.config import C
@@ -237,9 +235,10 @@ class FileFeatureStorage(FileStorageMixin, FeatureStorage):
             else:
                 raise TypeError(f"type(i) = {type(i)}")
 
-    def _get_datas(self, i: Union[int, slice]):
-        DayTradingService.get_feature_datas(self.instrument)
-
     def __len__(self) -> int:
         self.check()
-        return self.uri.stat().st_size // 4 - 1
+        with pd.HDFStore(self.store_path, 'r') as store:
+            if f"/{self.key}" not in store.keys():
+                return 0
+            else:
+                return store[self.key].shape[0]

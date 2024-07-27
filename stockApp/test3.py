@@ -1,4 +1,4 @@
-import sys
+import sys, datetime
 
 from dao.dayTrading import DayTrading
 from modules.dataHandler.normalize1d import Normalize1d
@@ -16,6 +16,8 @@ from modules.dataHandler.data import Cal
 from service.dayTrading.dayTradingService import DayTradingService
 
 if __name__ == '__main__':
+
+
     # cache_path = "/Users/vega/workspace/codes/py_space/working/stockApi/test2.py"
     # cache_path = Path(cache_path)
     # meta_path = cache_path.with_suffix(".meta")
@@ -26,18 +28,28 @@ if __name__ == '__main__':
     #
     # hdf5_path = Path(provider_uri, 'calendars', "day.h5")
     # df1 = pd.read_hdf(hdf5_path, key='calendar')
-    #
+
+    import tables
     hdf5_path = '/Users/vega/workspace/codes/py_space/working/stockApi/stockApp/crontab/_datas/store.h5'
     store = pd.HDFStore(hdf5_path, mode='r')
-
-    key = '/features/sh600083'
-    print(key in store.keys())
-    # df = store[key]
-    # print(df)
+    hdf5_file = tables.open_file(hdf5_path, mode='r')
+    group_path = '/features'
+    group = hdf5_file.get_node(group_path)
+    for node in group:
+        print(node.name)
+    hdf5_file.close()
+    try:
+        key = '/features/sh6000823'
+        # print(store.keys())
+        df = store[key]
+        print(df)
+    except Exception as e:
+        print(e)
     # print(df)
     # print(df.index.names)
     # print(df[df.index.get_level_values('id')==8119]['close'])
     # print(df.index.get_level_values('id')[-1])
+
     store.close()
     xxxx
 
@@ -81,14 +93,14 @@ if __name__ == '__main__':
     ddd
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    with Path('/Users/vega/workspace/codes/py_space/案例/股票/qlib/.qlib/qlib_data/cn_data/features/sh600083/volume.day.bin').open("rb") as fp:
-        _old_data = np.fromfile(fp, dtype="<f")
-        _old_index = _old_data[0]
-
-        # print(_old_data, _old_index, _old_data[len(_old_data)-1])
-        # xxxx
-        # '20200101', '20200201'
-        print(_old_data[0:11])
+    # with Path('/Users/vega/workspace/codes/py_space/案例/股票/qlib/.qlib/qlib_data/cn_data/features/sh600083/close.day.bin').open("rb") as fp:
+    #     _old_data = np.fromfile(fp, dtype="<f")
+    #     _old_index = _old_data[0]
+    #
+    #     # print(_old_data, _old_index, _old_data[len(_old_data)-1])
+    #     # xxxx
+    #     # '20200101', '20200201'
+    #     print(_old_data[0:11])
     with app.app_context():
         res = DayTradingService.get_feature_datas('600083', '19991110', '19991125')
         _close = Normalize1d.get_first_close(res)

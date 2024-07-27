@@ -1,7 +1,7 @@
 # coding:utf8
 import pandas as pd
 from typing import List, Union
-from jsonpath import jsonpath
+import jsonpath
 from functools import partial
 from multiprocessing.pool import ThreadPool
 from ..config.stockDataConst import Constants, EastConfig

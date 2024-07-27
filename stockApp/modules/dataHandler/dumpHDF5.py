@@ -88,6 +88,7 @@ class DumpDataBase:
         r_df.set_index('id', append=True, inplace=True)
         return r_df
 
+    # 保存股票列表
     def save_instruments(self, instruments_data: pd.DataFrame, name='all'):
         self._h5_dir.mkdir(parents=True, exist_ok=True)
         hdf5_path = Path(self._h5_dir, self.H5_NAME)
@@ -110,6 +111,7 @@ class DumpDataBase:
                     if 'store' in locals():
                         store.close()
 
+    # 保存股票因子
     def save_features(self, instrument: str, feature_df: pd.DataFrame, calendar_df: pd.DataFrame):
         self._h5_dir.mkdir(parents=True, exist_ok=True)
         if not instrument:

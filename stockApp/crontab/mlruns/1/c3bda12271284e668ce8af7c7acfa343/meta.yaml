@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/vega/workspace/codes/py_space/working/stockApi/stockApp/crontab/mlruns/1/c3bda12271284e668ce8af7c7acfa343/artifacts
+end_time: 1720110019640
+entry_point_name: ''
+experiment_id: '1'
+lifecycle_stage: active
+run_id: c3bda12271284e668ce8af7c7acfa343
+run_name: mlflow_recorder
+run_uuid: c3bda12271284e668ce8af7c7acfa343
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1720109993984
+status: 4
+tags: []
+user_id: zhouquan

@@ -1,3 +1,5 @@
 .idea/
 __pycache__/
 core/instance/
+stockApp/modules/langchainBI/llm/vectorStore/
+stockApp/modules/langchainBI/llm/models/

@@ -1,13 +1,9 @@
 # coding=utf-8
 import sys
 
-from modules.common import init_instance_by_config
-
 sys.path.append("/Users/vega/workspace/codes/py_space/working/stockApi")
 import sys
 import abc
-import copy
-import queue
 import bisect
 import numpy as np
 import pandas as pd
@@ -21,6 +17,8 @@ from core.log.logger import get_module_logger
 from stockApp.modules.dataHandler.storage.file_storage import FileCalendarStorage, FileInstrumentStorage, FileFeatureStorage
 from stockApp.modules.common import parse_field, time_to_slc_point
 from stockApp.modules.common.config import C
+from stockApp.modules.common import init_instance_by_config
+#  eval(parse_field(field)) 这个需要
 from .ops import Operators
 
 
@@ -781,7 +779,7 @@ D: BaseProviderWrapper = Wrapper()
 
 def register_all_wrappers(C):
     """register_all_wrappers"""
-    logger = get_module_logger("modules.dataHandler.data")
+    # logger = get_module_logger("modules.dataHandler.data")
 
     Cal.register(CalendarProvider())
 

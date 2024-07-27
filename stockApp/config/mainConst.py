@@ -2,6 +2,8 @@
 import os
 from enum import Enum, unique
 
+APP_BOOT_PATH = "/Users/vega/workspace/codes/py_space/working/stockApi/stockApp"
+
 @unique
 class Constant(Enum):
     PAGE_SIZE = 20

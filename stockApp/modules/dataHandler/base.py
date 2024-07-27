@@ -192,7 +192,6 @@ class Expression(abc.ABC):
                 f"error info: {str(e)}"
             )
             raise
-        # print(str(self), '======str(self)===xx')
         series.name = str(self)
         H["f"][cache_key] = series
         return series
@@ -250,7 +249,6 @@ class Feature(Expression):
     def _load_internal(self, instrument, start_index, end_index, freq):
         # load
         from .data import FeatureD  # pylint: disable=C0415
-
         res = FeatureD.feature(instrument, str(self), start_index, end_index, freq)
         return res
 

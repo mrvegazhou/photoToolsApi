@@ -229,7 +229,6 @@ class Recorder:
         raise NotImplementedError(f"Please implement the `list_tags` method.")
 
 
-
 class MLflowRecorder(Recorder):
     """
     Use mlflow to implement a Recorder.

@@ -11,6 +11,7 @@ class EastDetailInfo(StockDataBase):
         return Constants.FULL_REAL_TIME_EAST_MONEY_URL.value
 
     def get_stock_detail_info(self, stock_code, timeout: float = None) -> pd.DataFrame:
+        # 股票详情
         secid = self.get_code_id(stock_code)
         data_json = self._fetch_stock_data(secid, timeout)
         return self._format_response_data(data_json)

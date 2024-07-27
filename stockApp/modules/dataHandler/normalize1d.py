@@ -110,21 +110,24 @@ class Normalize1d:
         df = self.manual_adj_data(df)
         return df
 
-
-    def update_normalized1d(self, df: pd.DataFrame) -> pd.DataFrame:
+    def update_normalized1d(self, df: pd.DataFrame, hdf5_path: str) -> pd.DataFrame:
         '''
         新数据append更新到到旧数据
         '''
         df = self.normalize(df)
 
         df.set_index(self._date_field_name, inplace=True)
-        old_qlib_data = self._get_old_data()
-        symbol_name = df[self._symbol_field_name].iloc[0]
-        old_symbol_list = old_qlib_data.index.get_level_values("code").unique().to_list()
-        if str(symbol_name).upper() not in old_symbol_list:
-            return df.reset_index()
 
-        old_df = old_qlib_data.loc[str(symbol_name).upper()]
+        # code列的第一行的第一个元素 股票名
+        symbol_name = df[self._symbol_field_name].iloc[0]
+        with pd.HDFStore(hdf5_path, mode='r') as store:
+            try:
+                key = f'/features/{symbol_name}'
+                old_qlib_data = store[key]
+            except Exception:
+                return df.reset_index()
+
+        old_df = old_qlib_data.loc[str(symbol_name).lower()]
         latest_date = old_df.index[-1]
 
         df = df.loc[latest_date:]

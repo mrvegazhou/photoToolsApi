@@ -2,6 +2,7 @@
 import copy
 import logging
 import re
+import os
 import platform
 import multiprocessing
 from pathlib import Path
@@ -82,6 +83,8 @@ _default_config = {
     "maxtasksperchild": None,
 
     "kernels": NUM_USABLE_CPU,
+    # pickle.dump protocol version
+    "dump_protocol_version": 4,
 
     # If joblib_backend is None, use loky
     "joblib_backend": "multiprocessing",
@@ -132,6 +135,12 @@ _default_config = {
         # To let qlib work with other packages, we shouldn't disable existing loggers.
         # Note that this param is default to True according to the documentation of logging.
         "disable_existing_loggers": False,
+
+
+    },
+    "exp_manager": {
+        "uri": "file:" + str(Path(os.getcwd()).resolve() / "crontab/mlruns"),
+        "default_exp_name": "Experiment",
     },
 }
 
@@ -253,17 +262,14 @@ class QlibConfig(Config):
         from ..workflow.expm import MLflowExpManager
         from ..dataHandler.ops import register_all_ops
         from ..dataHandler.data import register_all_wrappers  # pylint: disable=C0415
-        # from ..workflow import R, QlibRecorder  # pylint: disable=C0415
+        from ..workflow import register_R, R  # pylint: disable=C0415
         # from ..workflow.utils import experiment_exit_handler  # pylint: disable=C0415
 
         register_all_ops(self)
         register_all_wrappers(self)
 
-        # set up QlibRecorder
-        # uri = "file:" + str(Path(os.getcwd()).resolve() / "mlruns")
-        # exp_manager = MLflowExpManager(uri, 'Experiment')
-        # qr = QlibRecorder(exp_manager)
-        # R.register(qr)
+        register_R(self)
+        print(R, '----r-----')
         # # clean up experiment when python program ends
         # experiment_exit_handler()
 

@@ -1,0 +1,2015 @@
+diff --git a/stockApp/crontab/_datas/store.h5 b/stockApp/crontab/_datas/store.h5
+index 860b918..4f16cf4 100644
+Binary files a/stockApp/crontab/_datas/store.h5 and b/stockApp/crontab/_datas/store.h5 differ
+diff --git a/stockApp/dao/dayTrading.py b/stockApp/dao/dayTrading.py
+index 65b28b0..f5f40c3 100644
+--- a/stockApp/dao/dayTrading.py
++++ b/stockApp/dao/dayTrading.py
+@@ -195,7 +195,7 @@ class DayTrading:
+ 
+     @staticmethod
+     def clear_tables():
+-        for i in range(50):
++        for i in range(10):
+             sql = '''
+                 TRUNCATE TABLE "stock"."day_trading_{}";
+             '''.format(i)
+diff --git a/stockApp/modules/common/config.py b/stockApp/modules/common/config.py
+index 339cf30..9bbaccc 100644
+--- a/stockApp/modules/common/config.py
++++ b/stockApp/modules/common/config.py
+@@ -2,6 +2,7 @@
+ import copy
+ import logging
+ import re
++import os
+ import platform
+ import multiprocessing
+ from pathlib import Path
+@@ -82,6 +83,8 @@ _default_config = {
+     "maxtasksperchild": None,
+ 
+     "kernels": NUM_USABLE_CPU,
++    # pickle.dump protocol version
++    "dump_protocol_version": 4,
+ 
+     # If joblib_backend is None, use loky
+     "joblib_backend": "multiprocessing",
+@@ -132,6 +135,12 @@ _default_config = {
+         # To let qlib work with other packages, we shouldn't disable existing loggers.
+         # Note that this param is default to True according to the documentation of logging.
+         "disable_existing_loggers": False,
++
++
++    },
++    "exp_manager": {
++        "uri": "file:" + str(Path(os.getcwd()).resolve() / "crontab/mlruns"),
++        "default_exp_name": "Experiment",
+     },
+ }
+ 
+@@ -253,17 +262,14 @@ class QlibConfig(Config):
+         from ..workflow.expm import MLflowExpManager
+         from ..dataHandler.ops import register_all_ops
+         from ..dataHandler.data import register_all_wrappers  # pylint: disable=C0415
+-        # from ..workflow import R, QlibRecorder  # pylint: disable=C0415
++        from ..workflow import register_R, R  # pylint: disable=C0415
+         # from ..workflow.utils import experiment_exit_handler  # pylint: disable=C0415
+ 
+         register_all_ops(self)
+         register_all_wrappers(self)
+ 
+-        # set up QlibRecorder
+-        # uri = "file:" + str(Path(os.getcwd()).resolve() / "mlruns")
+-        # exp_manager = MLflowExpManager(uri, 'Experiment')
+-        # qr = QlibRecorder(exp_manager)
+-        # R.register(qr)
++        register_R(self)
++        print(R, '----r-----')
+         # # clean up experiment when python program ends
+         # experiment_exit_handler()
+ 
+diff --git a/stockApp/modules/common/mod.py b/stockApp/modules/common/mod.py
+index ce5d871..ab606ad 100644
+--- a/stockApp/modules/common/mod.py
++++ b/stockApp/modules/common/mod.py
+@@ -1,4 +1,5 @@
+ # coding=utf-8
++import contextlib
+ from typing import Any, Dict, Tuple, Union
+ from .typehint import InstConf
+ from pathlib import Path
+@@ -164,3 +165,20 @@ def init_instance_by_config(
+         # 2: `XXX() got an unexpected keyword argument 'YYY'
+         return klass(**cls_kwargs, **kwargs)
+ 
++@contextlib.contextmanager
++def class_casting(obj: object, cls: type):
++    """
++    Python doesn't provide the downcasting mechanism.
++    We use the trick here to downcast the class
++
++    Parameters
++    ----------
++    obj : object
++        the object to be cast
++    cls : type
++        the target class type
++    """
++    orig_cls = obj.__class__
++    obj.__class__ = cls
++    yield
++    obj.__class__ = orig_cls
+\ No newline at end of file
+diff --git a/stockApp/modules/contrib/data/handler.py b/stockApp/modules/contrib/data/handler.py
+index 501ebdd..7fb96c8 100644
+--- a/stockApp/modules/contrib/data/handler.py
++++ b/stockApp/modules/contrib/data/handler.py
+@@ -32,9 +32,10 @@ def check_transform_proc(proc_l, fit_start_time, fit_end_time):
+ 
+ 
+ _DEFAULT_LEARN_PROCESSORS = [
+-    {"class": "DropnaLabel"},
++    # 默认就是label
++    # {"class": "DropnaLabel"},
+     # 去极值
+-    {"class": "CSZScoreNorm", "kwargs": {"fields_group": "label"}},
++    {"class": "Fillna", "kwargs": {"fields_group": "label"}},
+ ]
+ _DEFAULT_INFER_PROCESSORS = [
+     {"class": "ProcessInf", "kwargs": {}},
+@@ -43,6 +44,96 @@ _DEFAULT_INFER_PROCESSORS = [
+ ]
+ 
+ 
++class Alpha360(DataHandlerLP):
++    def __init__(
++        self,
++        instruments="csi500",
++        start_time=None,
++        end_time=None,
++        freq="day",
++        infer_processors=_DEFAULT_INFER_PROCESSORS,
++        learn_processors=_DEFAULT_LEARN_PROCESSORS,
++        fit_start_time=None,
++        fit_end_time=None,
++        filter_pipe=None,
++        inst_processors=None,
++        **kwargs
++    ):
++        infer_processors = check_transform_proc(infer_processors, fit_start_time, fit_end_time)
++        learn_processors = check_transform_proc(learn_processors, fit_start_time, fit_end_time)
++
++        data_loader = {
++            "class": "QlibDataLoader",
++            "kwargs": {
++                "config": {
++                    "feature": self.get_feature_config(),
++                    "label": kwargs.pop("label", self.get_label_config()),
++                },
++                "filter_pipe": filter_pipe,
++                "freq": freq,
++                "inst_processors": inst_processors,
++            },
++        }
++
++        super().__init__(
++            instruments=instruments,
++            start_time=start_time,
++            end_time=end_time,
++            data_loader=data_loader,
++            learn_processors=learn_processors,
++            infer_processors=infer_processors,
++            **kwargs
++        )
++
++    def get_label_config(self):
++        return ["Ref($close, -2)/Ref($close, -1) - 1"], ["LABEL0"]
++
++    @staticmethod
++    def get_feature_config():
++        # NOTE:
++        # Alpha360 tries to provide a dataset with original price data
++        # the original price data includes the prices and volume in the last 60 days.
++        # To make it easier to learn models from this dataset, all the prices and volume
++        # are normalized by the latest price and volume data ( dividing by $close, $volume)
++        # So the latest normalized $close will be 1 (with name CLOSE0), the latest normalized $volume will be 1 (with name VOLUME0)
++        # If further normalization are executed (e.g. centralization),  CLOSE0 and VOLUME0 will be 0.
++        fields = []
++        names = []
++
++        for i in range(59, 0, -1):
++            fields += ["Ref($close, %d)/$close" % i]
++            names += ["CLOSE%d" % i]
++        fields += ["$close/$close"]
++        names += ["CLOSE0"]
++        for i in range(59, 0, -1):
++            fields += ["Ref($open, %d)/$close" % i]
++            names += ["OPEN%d" % i]
++        fields += ["$open/$close"]
++        names += ["OPEN0"]
++        for i in range(59, 0, -1):
++            fields += ["Ref($high, %d)/$close" % i]
++            names += ["HIGH%d" % i]
++        fields += ["$high/$close"]
++        names += ["HIGH0"]
++        for i in range(59, 0, -1):
++            fields += ["Ref($low, %d)/$close" % i]
++            names += ["LOW%d" % i]
++        fields += ["$low/$close"]
++        names += ["LOW0"]
++        for i in range(59, 0, -1):
++            fields += ["Ref($vwap, %d)/$close" % i]
++            names += ["VWAP%d" % i]
++        fields += ["$vwap/$close"]
++        names += ["VWAP0"]
++        for i in range(59, 0, -1):
++            fields += ["Ref($volume, %d)/($volume+1e-12)" % i]
++            names += ["VOLUME%d" % i]
++        fields += ["$volume/($volume+1e-12)"]
++        names += ["VOLUME0"]
++
++        return fields, names
++
++
+ class Alpha158(DataHandlerLP):
+     def __init__(
+         self,
+@@ -97,7 +188,8 @@ class Alpha158(DataHandlerLP):
+         return self.parse_config_to_fields(conf)
+ 
+     def get_label_config(self):
+-        return ["Ref($close, -2)/Ref($close, -1) - 1"], ["LABEL0"]
++        # return ["Ref($close, -2)/Ref($close, -1) - 1"], ["LABEL0"]
++        return ["SignCustom(Ref($close, -5)-$close)"], ["LABEL0"]
+ 
+     @staticmethod
+     def parse_config_to_fields(config):
+diff --git a/stockApp/modules/dataHandler/base.py b/stockApp/modules/dataHandler/base.py
+index 943c010..7342a9f 100644
+--- a/stockApp/modules/dataHandler/base.py
++++ b/stockApp/modules/dataHandler/base.py
+@@ -192,7 +192,6 @@ class Expression(abc.ABC):
+                 f"error info: {str(e)}"
+             )
+             raise
+-        # print(str(self), '======str(self)===xx')
+         series.name = str(self)
+         H["f"][cache_key] = series
+         return series
+@@ -250,7 +249,6 @@ class Feature(Expression):
+     def _load_internal(self, instrument, start_index, end_index, freq):
+         # load
+         from .data import FeatureD  # pylint: disable=C0415
+-
+         res = FeatureD.feature(instrument, str(self), start_index, end_index, freq)
+         return res
+ 
+diff --git a/stockApp/modules/dataHandler/cache.py b/stockApp/modules/dataHandler/cache.py
+index aa19e35..d7ff7d5 100644
+--- a/stockApp/modules/dataHandler/cache.py
++++ b/stockApp/modules/dataHandler/cache.py
+@@ -15,7 +15,6 @@ from typing import Union, Iterable
+ from collections import OrderedDict
+ 
+ from core.log.logger import get_module_logger
+-from service.dayTrading.dayTradingService import DayTradingService
+ from ..common import get_redis_connection, normalize_cache_fields, remove_fields_space, hash_args, \
+     normalize_cache_instruments
+ from ..common.config import C
+@@ -808,64 +807,3 @@ class DiskDatasetCache(DatasetCache):
+                 with meta_path.open("wb") as f:
+                     pickle.dump(d, f, protocol=C.dump_protocol_version)
+                 return 0
+-
+-
+-class DataHDF5Cache(BaseProviderCache):
+-    FEATURES_DIR_NAME = "features"
+-    def __init__(self, provider: DayTradingService):
+-        super(DataHDF5Cache, self).__init__(provider)
+-        self.r = get_redis_connection()
+-
+-    def get_cache_dir(self, freq: str = None) -> Path:
+-        return super(DataHDF5Cache, self).get_cache_dir(C.dataset_cache_dir_name, freq)
+-
+-    def read_data_from_cache(self, instrument, freq, start_time, end_time, field):
+-        cache_path = self.get_cache_dir(freq).joinpath(self.FEATURES_DIR_NAME)
+-        key = f"{instrument}"
+-        start_time = pd.to_datetime(start_time)
+-        end_time = pd.to_datetime(end_time)
+-        if self.check_cache_exists(cache_path):
+-            store = pd.HDFStore(cache_path, mode="r")
+-            if "{}".format(key) in store.keys():
+-                df = store[key]
+-                # 判断日期范围是否在hdf5中被包含 日期是hdf5的第二个索引
+-                date_index = df.index.get_level_values(1)
+-                start_time_h5 = date_index.min()
+-                end_time_h5 = date_index.max()
+-                si = pd.to_datetime([start_time_h5, start_time]).max()
+-                se = pd.to_datetime([end_time_h5, end_time]).min()
+-                df = store.read(instrument, where=f"trade_date >= '{si}' and trade_date <= '{se}'", columns=[field])
+-                store.close()
+-                return df[field]
+-            else:
+-                self.gen_dataset_cache(cache_path, instrument, start_time, end_time, field, freq)
+-        else:
+-            # 没有缓存 创建缓存数据
+-            self.gen_dataset_cache(cache_path, instrument, start_time, end_time, field, freq)
+-
+-    def gen_dataset_cache(self, instrument, start_time, end_time, field, freq):
+-        cache_path = self.get_cache_dir(freq).joinpath(self.FEATURES_DIR_NAME)
+-        self.logger.debug(f"Generating feature cache {cache_path}")
+-        df = self.provider.get_feature_datas(instrument, start_time, end_time)
+-        lock_name = f"{str(C.dpm.get_data_uri(freq))}:feature-{instrument}"
+-        with CacheUtils.writer_lock(self.r, lock_name):
+-            key = f"{instrument}"
+-            store = pd.HDFStore(cache_path,  mode='a')
+-            store.remove(key)
+-            store.put(key, df, format='table', data_columns=True)
+-            store.close()
+-        return df[field]
+-
+-    def get_end_index(self, instrument, start_time, end_time, freq):
+-        key = f"{instrument}"
+-        cache_path = self.get_cache_dir(freq).joinpath('featrues')
+-        with pd.HDFStore(cache_path, mode="r") as store:
+-            if "{}".format(key) in store.keys():
+-                df = store[key]
+-            else:
+-                df = self.provider.get_feature_datas(instrument, start_time, end_time)
+-            return df.shape[0]
+-        return 0
+-
+-    def get_start_index(self, instrument, start_time, end_time):
+-        pass
+\ No newline at end of file
+diff --git a/stockApp/modules/dataHandler/data.py b/stockApp/modules/dataHandler/data.py
+index e281059..781e50b 100644
+--- a/stockApp/modules/dataHandler/data.py
++++ b/stockApp/modules/dataHandler/data.py
+@@ -1,13 +1,9 @@
+ # coding=utf-8
+ import sys
+ 
+-from modules.common import init_instance_by_config
+-
+ sys.path.append("/Users/vega/workspace/codes/py_space/working/stockApi")
+ import sys
+ import abc
+-import copy
+-import queue
+ import bisect
+ import numpy as np
+ import pandas as pd
+@@ -21,6 +17,8 @@ from core.log.logger import get_module_logger
+ from stockApp.modules.dataHandler.storage.file_storage import FileCalendarStorage, FileInstrumentStorage, FileFeatureStorage
+ from stockApp.modules.common import parse_field, time_to_slc_point
+ from stockApp.modules.common.config import C
++from stockApp.modules.common import init_instance_by_config
++#  eval(parse_field(field)) 这个需要
+ from .ops import Operators
+ 
+ 
+@@ -781,7 +779,7 @@ D: BaseProviderWrapper = Wrapper()
+ 
+ def register_all_wrappers(C):
+     """register_all_wrappers"""
+-    logger = get_module_logger("modules.dataHandler.data")
++    # logger = get_module_logger("modules.dataHandler.data")
+ 
+     Cal.register(CalendarProvider())
+ 
+diff --git a/stockApp/modules/dataHandler/dataset/__init__.py b/stockApp/modules/dataHandler/dataset/__init__.py
+index 98fde6b..89a9e98 100644
+--- a/stockApp/modules/dataHandler/dataset/__init__.py
++++ b/stockApp/modules/dataHandler/dataset/__init__.py
+@@ -1,6 +1,8 @@
+ from typing import Callable, Union, List, Tuple, Dict, Text, Optional
+ import pandas as pd
+ from copy import copy, deepcopy
++from inspect import getfullargspec
++from core.log.logger import get_module_logger
+ from ...common.serial import Serializable
+ from .handler import DataHandler, DataHandlerLP
+ from ...common import init_instance_by_config
+@@ -173,7 +175,10 @@ class DatasetH(Dataset):
+         slc : please refer to the docs of `prepare`
+                 NOTE: it may not be an instance of slice. It may be a segment of `segments` from `def prepare`
+         """
++        # hasattr(self, "fetch_kwargs"): True
+         if hasattr(self, "fetch_kwargs"):
++            # kwargs: {'col_set': 'feature', 'data_key': 'infer'}
++            # self.fetch_kwargs: {}
+             return self.handler.fetch(slc, **kwargs, **self.fetch_kwargs)
+         else:
+             return self.handler.fetch(slc, **kwargs)
+diff --git a/stockApp/modules/dataHandler/dataset/handler.py b/stockApp/modules/dataHandler/dataset/handler.py
+index 38e80b4..84fcee2 100644
+--- a/stockApp/modules/dataHandler/dataset/handler.py
++++ b/stockApp/modules/dataHandler/dataset/handler.py
+@@ -2,6 +2,8 @@
+ import warnings
+ from typing import Callable, Union, Tuple, List, Iterator, Optional
+ import pandas as pd
++
++from .utils import fetch_df_by_index, fetch_df_by_col
+ from ...common.serial import Serializable
+ from .loader import DataLoader
+ from ...common import lazy_sort_index, init_instance_by_config
+@@ -229,9 +231,6 @@ class DataHandler(Serializable):
+         squeeze: bool = False,
+         proc_func: Callable = None,
+     ):
+-        # This method is extracted for sharing in subclasses
+-        from .storage import BaseHandlerStorage  # pylint: disable=C0415
+-
+         # Following conflicts may occur
+         # - Does [20200101", "20210101"] mean selecting this slice or these two days?
+         # To solve this issue
+@@ -243,7 +242,7 @@ class DataHandler(Serializable):
+                 selector = slice(*selector)
+             except ValueError:
+                 get_module_logger("DataHandlerLP").info(f"Fail to converting to query to slice. It will used directly")
+-        # print(data_storage, isinstance(data_storage, pd.DataFrame), proc_func is not None, "====isinstance(data_storage, pd.DataFrame)====")
++        # print(data_storage, isinstance(data_storage, pd.DataFrame), proc_func is not None, proc_func, "====isinstance(data_storage, pd.DataFrame)====")
+         if isinstance(data_storage, pd.DataFrame):
+             data_df = data_storage
+             if proc_func is not None:
+@@ -255,17 +254,6 @@ class DataHandler(Serializable):
+                 # Fetch column  first will be more friendly to SepDataFrame
+                 data_df = fetch_df_by_col(data_df, col_set)
+                 data_df = fetch_df_by_index(data_df, selector, level, fetch_orig=self.fetch_orig)
+-        elif isinstance(data_storage, BaseHandlerStorage):
+-            if not data_storage.is_proc_func_supported():
+-                if proc_func is not None:
+-                    raise ValueError(f"proc_func is not supported by the storage {type(data_storage)}")
+-                data_df = data_storage.fetch(
+-                    selector=selector, level=level, col_set=col_set, fetch_orig=self.fetch_orig
+-                )
+-            else:
+-                data_df = data_storage.fetch(
+-                    selector=selector, level=level, col_set=col_set, fetch_orig=self.fetch_orig, proc_func=proc_func
+-                )
+         else:
+             raise TypeError(f"data_storage should be pd.DataFrame|HashingStockStorage, not {type(data_storage)}")
+ 
+@@ -653,7 +641,7 @@ class DataHandlerLP(DataHandler):
+         -------
+         pd.DataFrame:
+         """
+-
++        print(self._get_df_by_key(data_key), data_key, '----data_key----')
+         return self._fetch_data(
+             data_storage=self._get_df_by_key(data_key),
+             selector=selector,
+diff --git a/stockApp/modules/dataHandler/dataset/loader.py b/stockApp/modules/dataHandler/dataset/loader.py
+index 728af55..2cc3d7f 100644
+--- a/stockApp/modules/dataHandler/dataset/loader.py
++++ b/stockApp/modules/dataHandler/dataset/loader.py
+@@ -131,6 +131,7 @@ class DLWParser(DataLoader):
+                 },
+                 axis=1,
+             )
++            print(df, '=====load------22-----')
+         else:
+             exprs, names = self.fields
+             df = self.load_group_df(instruments, exprs, names, start_time, end_time)
+diff --git a/stockApp/modules/dataHandler/dataset/processor.py b/stockApp/modules/dataHandler/dataset/processor.py
+index 8e157da..496906a 100644
+--- a/stockApp/modules/dataHandler/dataset/processor.py
++++ b/stockApp/modules/dataHandler/dataset/processor.py
+@@ -1,6 +1,9 @@
+ import abc
+ from typing import Union, Text, Optional
+ import pandas as pd
++import numpy as np
++from .utils import fetch_df_by_index
++from ...common.paral import datetime_groupby_apply
+ from ...common.serial import Serializable
+ from ...common.data import zscore, robust_zscore
+ 
+@@ -125,3 +128,115 @@ class CSZScoreNorm(Processor):
+                 cols = get_group_columns(df, g)
+                 df[cols] = df[cols].groupby("datetime", group_keys=False).apply(self.zscore_func)
+         return df
++
++
++class ZScoreNorm(Processor):
++    """ZScore Normalization"""
++
++    def __init__(self, fit_start_time, fit_end_time, fields_group=None):
++        # NOTE: correctly set the `fit_start_time` and `fit_end_time` is very important !!!
++        # `fit_end_time` **must not** include any information from the test data!!!
++        self.fit_start_time = fit_start_time
++        self.fit_end_time = fit_end_time
++        self.fields_group = fields_group
++
++    def fit(self, df: pd.DataFrame = None):
++        df = fetch_df_by_index(df, slice(self.fit_start_time, self.fit_end_time), level="datetime")
++        cols = get_group_columns(df, self.fields_group)
++        self.mean_train = np.nanmean(df[cols].values, axis=0)
++        self.std_train = np.nanstd(df[cols].values, axis=0)
++        self.ignore = self.std_train == 0
++        # To improve the speed, we set the value of `std_train` to `1` for the columns that do not need to be processed,
++        # and the value of `mean_train` to `0`, when using `(x - mean_train) / std_train` for uniform calculation,
++        # the columns that do not need to be processed will be calculated by `(x - 0) / 1`,
++        # as you can see, the columns that do not need to be processed, will not be affected.
++        for _i, _con in enumerate(self.ignore):
++            if _con:
++                self.std_train[_i] = 1
++                self.mean_train[_i] = 0
++        self.cols = cols
++
++    def __call__(self, df):
++        def normalize(x, mean_train=self.mean_train, std_train=self.std_train):
++            return (x - mean_train) / std_train
++
++        df.loc(axis=1)[self.cols] = normalize(df[self.cols].values)
++        return df
++
++
++class ProcessInf(Processor):
++    """Process infinity"""
++
++    def __call__(self, df):
++        def replace_inf(data):
++            def process_inf(df):
++                for col in df.columns:
++                    # FIXME: Such behavior is very weird
++                    df[col] = df[col].replace([np.inf, -np.inf], df[col][~np.isinf(df[col])].mean())
++                return df
++
++            data = datetime_groupby_apply(data, process_inf)
++            data.sort_index(inplace=True)
++            return data
++
++        return replace_inf(df)
++
++
++class Fillna(Processor):
++    """Process NaN"""
++
++    def __init__(self, fields_group=None, fill_value=0):
++        self.fields_group = fields_group
++        self.fill_value = fill_value
++
++    def __call__(self, df):
++        if self.fields_group is None:
++            df.fillna(self.fill_value, inplace=True)
++        else:
++            cols = get_group_columns(df, self.fields_group)
++            # this implementation is extremely slow
++            # df.fillna({col: self.fill_value for col in cols}, inplace=True)
++
++            # So we use numpy to accelerate filling values
++            nan_select = np.isnan(df.values)
++            nan_select[:, ~df.columns.isin(cols)] = False
++            df.values[nan_select] = self.fill_value
++        return df
++
++
++class RobustZScoreNorm(Processor):
++    """Robust ZScore Normalization
++
++    Use robust statistics for Z-Score normalization:
++        mean(x) = median(x)
++        std(x) = MAD(x) * 1.4826
++
++    Reference:
++        https://en.wikipedia.org/wiki/Median_absolute_deviation.
++    """
++
++    def __init__(self, fit_start_time, fit_end_time, fields_group=None, clip_outlier=True):
++        # NOTE: correctly set the `fit_start_time` and `fit_end_time` is very important !!!
++        # `fit_end_time` **must not** include any information from the test data!!!
++        self.fit_start_time = fit_start_time
++        self.fit_end_time = fit_end_time
++        self.fields_group = fields_group
++        self.clip_outlier = clip_outlier
++
++    def fit(self, df: pd.DataFrame = None):
++        df = fetch_df_by_index(df, slice(self.fit_start_time, self.fit_end_time), level="datetime")
++        self.cols = get_group_columns(df, self.fields_group)
++        X = df[self.cols].values
++        self.mean_train = np.nanmedian(X, axis=0)
++        self.std_train = np.nanmedian(np.abs(X - self.mean_train), axis=0)
++        self.std_train += EPS
++        self.std_train *= 1.4826
++
++    def __call__(self, df):
++        X = df[self.cols]
++        X -= self.mean_train
++        X /= self.std_train
++        if self.clip_outlier:
++            X = np.clip(X, -3, 3)
++        df[self.cols] = X
++        return df
+diff --git a/stockApp/modules/dataHandler/dataset/utils.py b/stockApp/modules/dataHandler/dataset/utils.py
+index 004c091..a07f50e 100644
+--- a/stockApp/modules/dataHandler/dataset/utils.py
++++ b/stockApp/modules/dataHandler/dataset/utils.py
+@@ -3,10 +3,10 @@
+ from __future__ import annotations
+ import pandas as pd
+ from typing import Union, List, TYPE_CHECKING
+-from qlib.utils import init_instance_by_config
++from ...common.mod import init_instance_by_config
+ 
+ if TYPE_CHECKING:
+-    from qlib.data.dataset import DataHandler
++    from . import DataHandler
+ 
+ 
+ def get_level_index(df: pd.DataFrame, level=Union[str, int]) -> int:
+diff --git a/stockApp/modules/dataHandler/dumpHDF5.py b/stockApp/modules/dataHandler/dumpHDF5.py
+index d86c31e..d7449c8 100644
+--- a/stockApp/modules/dataHandler/dumpHDF5.py
++++ b/stockApp/modules/dataHandler/dumpHDF5.py
+@@ -88,6 +88,7 @@ class DumpDataBase:
+         r_df.set_index('id', append=True, inplace=True)
+         return r_df
+ 
++    # 保存股票列表
+     def save_instruments(self, instruments_data: pd.DataFrame, name='all'):
+         self._h5_dir.mkdir(parents=True, exist_ok=True)
+         hdf5_path = Path(self._h5_dir, self.H5_NAME)
+@@ -110,6 +111,7 @@ class DumpDataBase:
+                     if 'store' in locals():
+                         store.close()
+ 
++    # 保存股票因子
+     def save_features(self, instrument: str, feature_df: pd.DataFrame, calendar_df: pd.DataFrame):
+         self._h5_dir.mkdir(parents=True, exist_ok=True)
+         if not instrument:
+diff --git a/stockApp/modules/dataHandler/ops.py b/stockApp/modules/dataHandler/ops.py
+index 9192928..1da48b6 100644
+--- a/stockApp/modules/dataHandler/ops.py
++++ b/stockApp/modules/dataHandler/ops.py
+@@ -129,6 +129,18 @@ class Abs(NpElemOperator):
+         super(Abs, self).__init__(feature, "abs")
+ 
+ 
++class SignCustom(NpElemOperator):
++    def __init__(self, feature):
++        super(SignCustom, self).__init__(feature, 'where')
++
++    def _load_internal(self, instrument, start_index, end_index, *args):
++        """
++        To avoid error raised by bool type input, we transform the data into float32.
++        """
++        series = self.feature.load(instrument, start_index, end_index, *args)
++        series = series.astype(np.float32)
++        return getattr(np, self.func)(series < 0, 2, getattr(np, self.func)(series > 0, 1, 0))
++
+ class Sign(NpElemOperator):
+     """Feature Sign
+ 
+@@ -267,6 +279,7 @@ class PairOperator(ExpressionOps):
+             rl, rr = 0, 0
+         return max(ll, rl), max(lr, rr)
+ 
++
+ class NpPairOperator(PairOperator):
+     """Numpy Pair-wise operator
+ 
+@@ -1580,6 +1593,7 @@ OpsList = [
+     Cov,
+     Delta,
+     Abs,
++    SignCustom,
+     Sign,
+     Log,
+     Power,
+diff --git a/stockApp/modules/dataHandler/storage/file_storage.py b/stockApp/modules/dataHandler/storage/file_storage.py
+index 3268e43..2318359 100644
+--- a/stockApp/modules/dataHandler/storage/file_storage.py
++++ b/stockApp/modules/dataHandler/storage/file_storage.py
+@@ -1,12 +1,10 @@
+ # coding:utf8
+ import struct
+ from pathlib import Path
+-from typing import Iterable, Union, Dict, Mapping, Tuple, List, Text
+-import re
++from typing import Union, Dict, Tuple, List, Text
+ import numpy as np
+ import pandas as pd
+ 
+-from service.dayTrading.dayTradingService import DayTradingService
+ from stockApp.modules.common.time import Freq
+ from stockApp.modules.common.resam import resam_calendar
+ from stockApp.modules.common.config import C
+@@ -237,9 +235,10 @@ class FileFeatureStorage(FileStorageMixin, FeatureStorage):
+             else:
+                 raise TypeError(f"type(i) = {type(i)}")
+ 
+-    def _get_datas(self, i: Union[int, slice]):
+-        DayTradingService.get_feature_datas(self.instrument)
+-
+     def __len__(self) -> int:
+         self.check()
+-        return self.uri.stat().st_size // 4 - 1
++        with pd.HDFStore(self.store_path, 'r') as store:
++            if f"/{self.key}" not in store.keys():
++                return 0
++            else:
++                return store[self.key].shape[0]
+diff --git a/stockApp/modules/dataLoader/stockData/eastDetailInfo.py b/stockApp/modules/dataLoader/stockData/eastDetailInfo.py
+index 16b9944..c1399f0 100644
+--- a/stockApp/modules/dataLoader/stockData/eastDetailInfo.py
++++ b/stockApp/modules/dataLoader/stockData/eastDetailInfo.py
+@@ -11,6 +11,7 @@ class EastDetailInfo(StockDataBase):
+         return Constants.FULL_REAL_TIME_EAST_MONEY_URL.value
+ 
+     def get_stock_detail_info(self, stock_code, timeout: float = None) -> pd.DataFrame:
++        # 股票详情
+         secid = self.get_code_id(stock_code)
+         data_json = self._fetch_stock_data(secid, timeout)
+         return self._format_response_data(data_json)
+diff --git a/stockApp/modules/workflow/__init__.py b/stockApp/modules/workflow/__init__.py
+index e69de29..4cc3359 100644
+--- a/stockApp/modules/workflow/__init__.py
++++ b/stockApp/modules/workflow/__init__.py
+@@ -0,0 +1,670 @@
++from contextlib import contextmanager
++from typing import Text, Optional, Any, Dict
++from .expm import ExpManager, MLflowExpManager
++from .exp import Experiment
++from .recorder import Recorder
++from ..common import Wrapper
++from ..common.exceptions import RecorderInitializationError
++
++
++class QlibRecorder:
++    def __init__(self, exp_manager: ExpManager):
++        self.exp_manager: ExpManager = exp_manager
++
++    def __repr__(self):
++        return "{name}(manager={manager})".format(name=self.__class__.__name__, manager=self.exp_manager)
++
++    @contextmanager
++    def start(
++        self,
++        *,
++        experiment_id: Optional[Text] = None,
++        experiment_name: Optional[Text] = None,
++        recorder_id: Optional[Text] = None,
++        recorder_name: Optional[Text] = None,
++        uri: Optional[Text] = None,
++        resume: bool = False,
++    ):
++        """
++        Method to start an experiment. This method can only be called within a Python's `with` statement. Here is the example code:
++
++        .. code-block:: Python
++
++            # start new experiment and recorder
++            with R.start(experiment_name='test', recorder_name='recorder_1'):
++                model.fit(dataset)
++                R.log...
++                ... # further operations
++
++            # resume previous experiment and recorder
++            with R.start(experiment_name='test', recorder_name='recorder_1', resume=True): # if users want to resume recorder, they have to specify the exact same name for experiment and recorder.
++                ... # further operations
++
++
++        Parameters
++        ----------
++        experiment_id : str
++            id of the experiment one wants to start.
++        experiment_name : str
++            name of the experiment one wants to start.
++        recorder_id : str
++            id of the recorder under the experiment one wants to start.
++        recorder_name : str
++            name of the recorder under the experiment one wants to start.
++        uri : str
++            The tracking uri of the experiment, where all the artifacts/metrics etc. will be stored.
++            The default uri is set in the qlib.config. Note that this uri argument will not change the one defined in the config file.
++            Therefore, the next time when users call this function in the same experiment,
++            they have to also specify this argument with the same value. Otherwise, inconsistent uri may occur.
++        resume : bool
++            whether to resume the specific recorder with given name under the given experiment.
++        """
++        run = self.start_exp(
++            experiment_id=experiment_id,
++            experiment_name=experiment_name,
++            recorder_id=recorder_id,
++            recorder_name=recorder_name,
++            uri=uri,
++            resume=resume,
++        )
++        try:
++            yield run
++        except Exception as e:
++            self.end_exp(Recorder.STATUS_FA)  # end the experiment if something went wrong
++            raise e
++        self.end_exp(Recorder.STATUS_FI)
++
++    def start_exp(
++        self,
++        *,
++        experiment_id=None,
++        experiment_name=None,
++        recorder_id=None,
++        recorder_name=None,
++        uri=None,
++        resume=False,
++    ):
++        """
++        Lower level method for starting an experiment. When use this method, one should end the experiment manually
++        and the status of the recorder may not be handled properly. Here is the example code:
++
++        .. code-block:: Python
++
++            R.start_exp(experiment_name='test', recorder_name='recorder_1')
++            ... # further operations
++            R.end_exp('FINISHED') or R.end_exp(Recorder.STATUS_S)
++
++
++        Parameters
++        ----------
++        experiment_id : str
++            id of the experiment one wants to start.
++        experiment_name : str
++            the name of the experiment to be started
++        recorder_id : str
++            id of the recorder under the experiment one wants to start.
++        recorder_name : str
++            name of the recorder under the experiment one wants to start.
++        uri : str
++            the tracking uri of the experiment, where all the artifacts/metrics etc. will be stored.
++            The default uri are set in the qlib.config.
++        resume : bool
++            whether to resume the specific recorder with given name under the given experiment.
++
++        Returns
++        -------
++        An experiment instance being started.
++        """
++        return self.exp_manager.start_exp(
++            experiment_id=experiment_id,
++            experiment_name=experiment_name,
++            recorder_id=recorder_id,
++            recorder_name=recorder_name,
++            uri=uri,
++            resume=resume,
++        )
++
++    def end_exp(self, recorder_status=Recorder.STATUS_FI):
++        """
++        Method for ending an experiment manually. It will end the current active experiment, as well as its
++        active recorder with the specified `status` type. Here is the example code of the method:
++
++        .. code-block:: Python
++
++            R.start_exp(experiment_name='test')
++            ... # further operations
++            R.end_exp('FINISHED') or R.end_exp(Recorder.STATUS_S)
++
++        Parameters
++        ----------
++        status : str
++            The status of a recorder, which can be SCHEDULED, RUNNING, FINISHED, FAILED.
++        """
++        self.exp_manager.end_exp(recorder_status)
++
++    def search_records(self, experiment_ids, **kwargs):
++        """
++        Get a pandas DataFrame of records that fit the search criteria.
++
++        The arguments of this function are not set to be rigid, and they will be different with different implementation of
++        ``ExpManager`` in ``Qlib``. ``Qlib`` now provides an implementation of ``ExpManager`` with mlflow, and here is the
++        example code of the method with the ``MLflowExpManager``:
++
++        .. code-block:: Python
++
++            R.log_metrics(m=2.50, step=0)
++            records = R.search_records([experiment_id], order_by=["metrics.m DESC"])
++
++        Parameters
++        ----------
++        experiment_ids : list
++            list of experiment IDs.
++        filter_string : str
++            filter query string, defaults to searching all runs.
++        run_view_type : int
++            one of enum values ACTIVE_ONLY, DELETED_ONLY, or ALL (e.g. in mlflow.entities.ViewType).
++        max_results  : int
++            the maximum number of runs to put in the dataframe.
++        order_by : list
++            list of columns to order by (e.g., “metrics.rmse”).
++
++        Returns
++        -------
++        A pandas.DataFrame of records, where each metric, parameter, and tag
++        are expanded into their own columns named metrics.*, params.*, and tags.*
++        respectively. For records that don't have a particular metric, parameter, or tag, their
++        value will be (NumPy) Nan, None, or None respectively.
++        """
++        return self.exp_manager.search_records(experiment_ids, **kwargs)
++
++    def list_experiments(self):
++        """
++        Method for listing all the existing experiments (except for those being deleted.)
++
++        .. code-block:: Python
++
++            exps = R.list_experiments()
++
++        Returns
++        -------
++        A dictionary (name -> experiment) of experiments information that being stored.
++        """
++        return self.exp_manager.list_experiments()
++
++    def list_recorders(self, experiment_id=None, experiment_name=None):
++        """
++        Method for listing all the recorders of experiment with given id or name.
++
++        If user doesn't provide the id or name of the experiment, this method will try to retrieve the default experiment and
++        list all the recorders of the default experiment. If the default experiment doesn't exist, the method will first
++        create the default experiment, and then create a new recorder under it. (More information about the default experiment
++        can be found `here <../component/recorder.html#qlib.workflow.exp.Experiment>`__).
++
++        Here is the example code:
++
++        .. code-block:: Python
++
++            recorders = R.list_recorders(experiment_name='test')
++
++        Parameters
++        ----------
++        experiment_id : str
++            id of the experiment.
++        experiment_name : str
++            name of the experiment.
++
++        Returns
++        -------
++        A dictionary (id -> recorder) of recorder information that being stored.
++        """
++        return self.get_exp(experiment_id=experiment_id, experiment_name=experiment_name).list_recorders()
++
++    def get_exp(
++            self, *, experiment_id=None, experiment_name=None, create: bool = True, start: bool = False
++    ) -> Experiment:
++        """
++        Method for retrieving an experiment with given id or name. Once the `create` argument is set to
++        True, if no valid experiment is found, this method will create one for you. Otherwise, it will
++        only retrieve a specific experiment or raise an Error.
++
++        - If '`create`' is True:
++
++            - If `active experiment` exists:
++
++                - no id or name specified, return the active experiment.
++
++                - if id or name is specified, return the specified experiment. If no such exp found, create a new experiment with given id or name.
++
++            - If `active experiment` not exists:
++
++                - no id or name specified, create a default experiment, and the experiment is set to be active.
++
++                - if id or name is specified, return the specified experiment. If no such exp found, create a new experiment with given name or the default experiment.
++
++        - Else If '`create`' is False:
++
++            - If `active experiment` exists:
++
++                - no id or name specified, return the active experiment.
++
++                - if id or name is specified, return the specified experiment. If no such exp found, raise Error.
++
++            - If `active experiment` not exists:
++
++                - no id or name specified. If the default experiment exists, return it, otherwise, raise Error.
++
++                - if id or name is specified, return the specified experiment. If no such exp found, raise Error.
++
++        Here are some use cases:
++
++        .. code-block:: Python
++
++            # Case 1
++            with R.start('test'):
++                exp = R.get_exp()
++                recorders = exp.list_recorders()
++
++            # Case 2
++            with R.start('test'):
++                exp = R.get_exp(experiment_name='test1')
++
++            # Case 3
++            exp = R.get_exp() -> a default experiment.
++
++            # Case 4
++            exp = R.get_exp(experiment_name='test')
++
++            # Case 5
++            exp = R.get_exp(create=False) -> the default experiment if exists.
++
++        Parameters
++        ----------
++        experiment_id : str
++            id of the experiment.
++        experiment_name : str
++            name of the experiment.
++        create : boolean
++            an argument determines whether the method will automatically create a new experiment
++            according to user's specification if the experiment hasn't been created before.
++        start : bool
++            when start is True,
++            if the experiment has not started(not activated), it will start
++            It is designed for R.log_params to auto start experiments
++
++        Returns
++        -------
++        An experiment instance with given id or name.
++        """
++        return self.exp_manager.get_exp(
++            experiment_id=experiment_id,
++            experiment_name=experiment_name,
++            create=create,
++            start=start,
++        )
++
++    def delete_exp(self, experiment_id=None, experiment_name=None):
++        """
++        Method for deleting the experiment with given id or name. At least one of id or name must be given,
++        otherwise, error will occur.
++
++        Here is the example code:
++
++        .. code-block:: Python
++
++            R.delete_exp(experiment_name='test')
++
++        Parameters
++        ----------
++        experiment_id : str
++            id of the experiment.
++        experiment_name : str
++            name of the experiment.
++        """
++        self.exp_manager.delete_exp(experiment_id, experiment_name)
++
++    def get_uri(self):
++        """
++        Method for retrieving the uri of current experiment manager.
++
++        Here is the example code:
++
++        .. code-block:: Python
++
++            uri = R.get_uri()
++
++        Returns
++        -------
++        The uri of current experiment manager.
++        """
++        return self.exp_manager.uri
++
++    def set_uri(self, uri: Optional[Text]):
++        """
++        Method to reset the **default** uri of current experiment manager.
++
++        NOTE:
++
++        - When the uri is refer to a file path, please using the absolute path instead of strings like "~/mlruns/"
++          The backend don't support strings like this.
++        """
++        self.exp_manager.default_uri = uri
++
++    @contextmanager
++    def uri_context(self, uri: Text):
++        """
++        Temporarily set the exp_manager's **default_uri** to uri
++
++        NOTE:
++        - Please refer to the NOTE in the `set_uri`
++
++        Parameters
++        ----------
++        uri : Text
++            the temporal uri
++        """
++        prev_uri = self.exp_manager.default_uri
++        self.exp_manager.default_uri = uri
++        try:
++            yield
++        finally:
++            self.exp_manager.default_uri = prev_uri
++
++    def get_recorder(
++            self,
++            *,
++            recorder_id=None,
++            recorder_name=None,
++            experiment_id=None,
++            experiment_name=None,
++    ) -> Recorder:
++        """
++        Method for retrieving a recorder.
++
++        - If `active recorder` exists:
++
++            - no id or name specified, return the active recorder.
++
++            - if id or name is specified, return the specified recorder.
++
++        - If `active recorder` not exists:
++
++            - no id or name specified, raise Error.
++
++            - if id or name is specified, and the corresponding experiment_name must be given, return the specified recorder. Otherwise, raise Error.
++
++        The recorder can be used for further process such as `save_object`, `load_object`, `log_params`,
++        `log_metrics`, etc.
++
++        Here are some use cases:
++
++        .. code-block:: Python
++
++            # Case 1
++            with R.start(experiment_name='test'):
++                recorder = R.get_recorder()
++
++            # Case 2
++            with R.start(experiment_name='test'):
++                recorder = R.get_recorder(recorder_id='2e7a4efd66574fa49039e00ffaefa99d')
++
++            # Case 3
++            recorder = R.get_recorder() -> Error
++
++            # Case 4
++            recorder = R.get_recorder(recorder_id='2e7a4efd66574fa49039e00ffaefa99d') -> Error
++
++            # Case 5
++            recorder = R.get_recorder(recorder_id='2e7a4efd66574fa49039e00ffaefa99d', experiment_name='test')
++
++
++        Here are some things users may concern
++        - Q: What recorder will it return if multiple recorder meets the query (e.g. query with experiment_name)
++        - A: If mlflow backend is used, then the recorder with the latest `start_time` will be returned. Because MLflow's `search_runs` function guarantee it
++
++        Parameters
++        ----------
++        recorder_id : str
++            id of the recorder.
++        recorder_name : str
++            name of the recorder.
++        experiment_name : str
++            name of the experiment.
++
++        Returns
++        -------
++        A recorder instance.
++        """
++        return self.get_exp(experiment_name=experiment_name, experiment_id=experiment_id,
++                            create=False).get_recorder(
++            recorder_id, recorder_name, create=False, start=False
++        )
++
++    def delete_recorder(self, recorder_id=None, recorder_name=None):
++        """
++        Method for deleting the recorders with given id or name. At least one of id or name must be given,
++        otherwise, error will occur.
++
++        Here is the example code:
++
++        .. code-block:: Python
++
++            R.delete_recorder(recorder_id='2e7a4efd66574fa49039e00ffaefa99d')
++
++        Parameters
++        ----------
++        recorder_id : str
++            id of the experiment.
++        recorder_name : str
++            name of the experiment.
++        """
++        self.get_exp().delete_recorder(recorder_id, recorder_name)
++
++    def save_objects(self, local_path=None, artifact_path=None, **kwargs: Dict[Text, Any]):
++        """
++        Method for saving objects as artifacts in the experiment to the uri. It supports either saving
++        from a local file/directory, or directly saving objects. User can use valid python's keywords arguments
++        to specify the object to be saved as well as its name (name: value).
++
++        In summary, this API is designs for saving **objects** to **the experiments management backend path**,
++        1. Qlib provide two methods to specify **objects**
++        - Passing in the object directly by passing with `**kwargs` (e.g. R.save_objects(trained_model=model))
++        - Passing in the local path to the object, i.e. `local_path` parameter.
++        2. `artifact_path` represents the  **the experiments management backend path**
++
++        - If `active recorder` exists: it will save the objects through the active recorder.
++        - If `active recorder` not exists: the system will create a default experiment, and a new recorder and save objects under it.
++
++        .. note::
++
++            If one wants to save objects with a specific recorder. It is recommended to first get the specific recorder through `get_recorder` API and use the recorder the save objects. The supported arguments are the same as this method.
++
++        Here are some use cases:
++
++        .. code-block:: Python
++
++            # Case 1
++            with R.start(experiment_name='test'):
++                pred = model.predict(dataset)
++                R.save_objects(**{"pred.pkl": pred}, artifact_path='prediction')
++                rid = R.get_recorder().id
++            ...
++            R.get_recorder(recorder_id=rid).load_object("prediction/pred.pkl")  #  after saving objects, you can load the previous object with this api
++
++            # Case 2
++            with R.start(experiment_name='test'):
++                R.save_objects(local_path='results/pred.pkl', artifact_path="prediction")
++                rid = R.get_recorder().id
++            ...
++            R.get_recorder(recorder_id=rid).load_object("prediction/pred.pkl")  #  after saving objects, you can load the previous object with this api
++
++
++        Parameters
++        ----------
++        local_path : str
++            if provided, them save the file or directory to the artifact URI.
++        artifact_path : str
++            the relative path for the artifact to be stored in the URI.
++        **kwargs: Dict[Text, Any]
++            the object to be saved.
++            For example, `{"pred.pkl": pred}`
++        """
++        if local_path is not None and len(kwargs) > 0:
++            raise ValueError(
++                "You can choose only one of `local_path`(save the files in a path) or `kwargs`(pass in the objects directly)"
++            )
++        self.get_exp().get_recorder(start=True).save_objects(local_path, artifact_path, **kwargs)
++
++    def load_object(self, name: Text):
++        """
++        Method for loading an object from artifacts in the experiment in the uri.
++        """
++        return self.get_exp().get_recorder(start=True).load_object(name)
++
++    def log_params(self, **kwargs):
++        """
++        Method for logging parameters during an experiment. In addition to using ``R``, one can also log to a specific recorder after getting it with `get_recorder` API.
++
++        - If `active recorder` exists: it will log parameters through the active recorder.
++        - If `active recorder` not exists: the system will create a default experiment as well as a new recorder, and log parameters under it.
++
++        Here are some use cases:
++
++        .. code-block:: Python
++
++            # Case 1
++            with R.start('test'):
++                R.log_params(learning_rate=0.01)
++
++            # Case 2
++            R.log_params(learning_rate=0.01)
++
++        Parameters
++        ----------
++        keyword argument:
++            name1=value1, name2=value2, ...
++        """
++        self.get_exp(start=True).get_recorder(start=True).log_params(**kwargs)
++
++    def log_metrics(self, step=None, **kwargs):
++        """
++        Method for logging metrics during an experiment. In addition to using ``R``, one can also log to a specific recorder after getting it with `get_recorder` API.
++
++        - If `active recorder` exists: it will log metrics through the active recorder.
++        - If `active recorder` not exists: the system will create a default experiment as well as a new recorder, and log metrics under it.
++
++        Here are some use cases:
++
++        .. code-block:: Python
++
++            # Case 1
++            with R.start('test'):
++                R.log_metrics(train_loss=0.33, step=1)
++
++            # Case 2
++            R.log_metrics(train_loss=0.33, step=1)
++
++        Parameters
++        ----------
++        keyword argument:
++            name1=value1, name2=value2, ...
++        """
++        self.get_exp(start=True).get_recorder(start=True).log_metrics(step, **kwargs)
++
++    def log_artifact(self, local_path: str, artifact_path: Optional[str] = None):
++        """
++        Log a local file or directory as an artifact of the currently active run
++
++        - If `active recorder` exists: it will set tags through the active recorder.
++        - If `active recorder` not exists: the system will create a default experiment as well as a new recorder, and set the tags under it.
++
++        Parameters
++        ----------
++        local_path : str
++            Path to the file to write.
++        artifact_path : Optional[str]
++            If provided, the directory in ``artifact_uri`` to write to.
++        """
++        self.get_exp(start=True).get_recorder(start=True).log_artifact(local_path, artifact_path)
++
++    def download_artifact(self, path: str, dst_path: Optional[str] = None) -> str:
++        """
++        Download an artifact file or directory from a run to a local directory if applicable,
++        and return a local path for it.
++
++        Parameters
++        ----------
++        path : str
++            Relative source path to the desired artifact.
++        dst_path : Optional[str]
++            Absolute path of the local filesystem destination directory to which to
++            download the specified artifacts. This directory must already exist.
++            If unspecified, the artifacts will either be downloaded to a new
++            uniquely-named directory on the local filesystem.
++
++        Returns
++        -------
++        str
++            Local path of desired artifact.
++        """
++        self.get_exp(start=True).get_recorder(start=True).download_artifact(path, dst_path)
++
++    def set_tags(self, **kwargs):
++        """
++        Method for setting tags for a recorder. In addition to using ``R``, one can also set the tag to a specific recorder after getting it with `get_recorder` API.
++
++        - If `active recorder` exists: it will set tags through the active recorder.
++        - If `active recorder` not exists: the system will create a default experiment as well as a new recorder, and set the tags under it.
++
++        Here are some use cases:
++
++        .. code-block:: Python
++
++            # Case 1
++            with R.start('test'):
++                R.set_tags(release_version="2.2.0")
++
++            # Case 2
++            R.set_tags(release_version="2.2.0")
++
++        Parameters
++        ----------
++        keyword argument:
++            name1=value1, name2=value2, ...
++        """
++        self.get_exp(start=True).get_recorder(start=True).set_tags(**kwargs)
++
++
++class RecorderWrapper(Wrapper):
++    """
++    Wrapper class for QlibRecorder, which detects whether users reinitialize qlib when already starting an experiment.
++    """
++
++    def register(self, provider):
++        if self._provider is not None:
++            expm = getattr(self._provider, "exp_manager")
++            if expm.active_experiment is not None:
++                raise RecorderInitializationError(
++                    "Please don't reinitialize Qlib if QlibRecorder is already activated. Otherwise, the experiment stored location will be modified."
++                )
++        self._provider = provider
++
++
++import sys
++
++if sys.version_info >= (3, 9):
++    from typing import Annotated
++
++    QlibRecorderWrapper = Annotated[QlibRecorder, RecorderWrapper]
++else:
++    QlibRecorderWrapper = QlibRecorder
++
++
++# global record
++R: QlibRecorderWrapper = RecorderWrapper()
++
++
++def register_R(C):
++    # set up QlibRecorder
++    exp_manager = MLflowExpManager(C["exp_manager"]['uri'], 'Experiment')
++    qr = QlibRecorder(exp_manager)
++    R.register(qr)
+\ No newline at end of file
+diff --git a/stockApp/modules/workflow/expm.py b/stockApp/modules/workflow/expm.py
+index b329d51..ecd4377 100644
+--- a/stockApp/modules/workflow/expm.py
++++ b/stockApp/modules/workflow/expm.py
+@@ -281,13 +281,13 @@ class ExpManager:
+         """
+         Get the default tracking URI from qlib.config.C
+         """
+-        if "kwargs" not in C.exp_manager or "uri" not in C.exp_manager["kwargs"]:
++        if "uri" not in C.exp_manager:
+             raise ValueError("The default URI is not set in qlib.config.C")
+-        return C.exp_manager["kwargs"]["uri"]
++        return C.exp_manager["uri"]
+ 
+     @default_uri.setter
+     def default_uri(self, value):
+-        C.exp_manager.setdefault("kwargs", {})["uri"] = value
++        C.exp_manager["uri"] = value
+ 
+     @property
+     def uri(self):
+diff --git a/stockApp/modules/workflow/recorder.py b/stockApp/modules/workflow/recorder.py
+index b66f0f7..3c219ce 100644
+--- a/stockApp/modules/workflow/recorder.py
++++ b/stockApp/modules/workflow/recorder.py
+@@ -229,7 +229,6 @@ class Recorder:
+         raise NotImplementedError(f"Please implement the `list_tags` method.")
+ 
+ 
+-
+ class MLflowRecorder(Recorder):
+     """
+     Use mlflow to implement a Recorder.
+diff --git a/stockApp/service/dayTrading/dayTradingService.py b/stockApp/service/dayTrading/dayTradingService.py
+index 1b5e7f7..52454d2 100644
+--- a/stockApp/service/dayTrading/dayTradingService.py
++++ b/stockApp/service/dayTrading/dayTradingService.py
+@@ -2,19 +2,24 @@
+ import sys, os, inspect
+ from decimal import Decimal
+ 
+-from modules.dataHandler.normalize1d import Normalize1d
+-
+ PACKAGE_PARENT = '../../../'
+ SCRIPT_DIR = os.path.dirname(
+     os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(inspect.getfile(inspect.currentframe())))))
+ sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
+ import pandas as pd
++import numpy as np
+ from datetime import datetime, timedelta
+ from stockApp import app
+ from stockApp.modules.dataLoader.stockData.eastMarketRealTime import EastMarketRealTime
+ from stockApp.modules.dataLoader.stockData.eastIntradayData import EastIntradayData
+ from stockApp.modules.dataLoader.stockData.tradingDate import TradingDate
+ from stockApp.dao.dayTrading import DayTrading
++from stockApp.modules.dataHandler.normalize1d import Normalize1d
++from stockApp.service.strategies.baseStrategy import BaseStrategy
++from core.log.logger import get_module_logger
++from stockApp.__init__ import utils
++
++logger = get_module_logger("DayTradingService")
+ 
+ 
+ class DayTradingService(object):
+@@ -25,13 +30,8 @@ class DayTradingService(object):
+         all_stock_data = EastMarketRealTime()
+         all_stocks_df = all_stock_data.get_market_real_time('沪深A')
+         intraday = EastIntradayData()
+-        print(all_stocks_df)
+         for idx, row in all_stocks_df.iterrows():
+             code = row['code']
+-            print(code)
+-            if code != '600083':
+-                continue
+-            print(code)
+             # 默认后复权
+             intraday_df = intraday.get_intraday_data(code, begin_date, end_date, ex_rights=2)
+             intraday_df = intraday_df.set_index("date", drop=False).sort_index()
+@@ -62,26 +62,48 @@ class DayTradingService(object):
+             print(res, "---res---")
+ 
+     @staticmethod
+-    def get_recent_trading_date():
++    def get_recent_trading_date(date=None, shift=None):
++        """
++        获取交易日期
++
++        Parameters
++        ----------
++        date: 指定日期
++        shift: 比如滑动到前天的日期
++
++        Return
++        ------
++        """
+         td = TradingDate()
+         df = td.get_stock_trading_date_list()
++        if df.empty:
++            return None
+ 
+-        today = datetime.today()
+-        now = today.strftime('%Y%m%d')
++        common_util = utils['common']
++        if date and not common_util.is_date(date):
++            return None
+ 
+-        exists = now in df['trading_date'].astype(str).values
+-        if exists:
+-            return now
++        if not date:
++            today = datetime.today()
++            now = today.strftime('%Y-%m-%d')
++        else:
++            last_row = df.iloc[-1]
++            date_obj = datetime.strptime(date, "%Y-%m-%d").date()
++            if last_row.trading_date < date_obj:
++                return None
++            first_row = df.iloc[0]
++            if first_row.trading_date > date_obj:
++                return None
++            now = date
+ 
+-        date_found = False
+-        while not date_found:
+-            if now in df['trading_date'].astype(str).values:
+-                date_found = True
+-            else:
+-                # 如果当前日期不在列中，获取上一天的日期
+-                today -= timedelta(days=1)
+-                now = today.strftime('%Y%m%d')
+-        return now
++        df['trading_date'] = pd.to_datetime(df['trading_date'])
++        previous_rows = df[df['trading_date'] <= pd.to_datetime(now)]
++        idx = previous_rows.index[-1]
++        if shift:
++            idx = shift + idx
++            if idx < df.index[0] or idx > df.index[-1]:
++                return None
++        return df.iloc[idx]['trading_date'].strftime('%Y-%m-%d')
+ 
+     @staticmethod
+     def get_trading_dates(start_time: str, end_time: str) -> pd.DataFrame:
+@@ -100,6 +122,15 @@ class DayTradingService(object):
+ 
+     @classmethod
+     def get_feature_datas(cls, code, start_date, end_date) -> pd.DataFrame:
++        """
++        获取股票的日交易列表 比如存储到hdf5
++
++        Parameters
++        ----------
++
++        Return
++        ------
++        """
+         # 获取日期范围内涨跌幅数据
+         datas = DayTrading.get_stock_trading_list_by_SQL(code, start_date, end_date)
+         column_names = ['code', 'open', 'close', 'high_price', 'low_price', 'volume', 'change', 'adj_factor', 'trading_date']
+@@ -119,15 +150,17 @@ class DayTradingService(object):
+                 df.sort_index(inplace=True)
+         else:
+             df = pd.DataFrame(columns=column_names)
++
++        df['vwap'] = BaseStrategy.vwap(df)
+         return df
+ 
+ 
+ if __name__ == '__main__':
+     with app.app_context():
+-        dt = DayTrading()
+-        print(dt.get_table('301567'))
++        # dt = DayTrading()
++        # print(dt.get_table('301567'))
+     #     DayTrading.create_tables()
+-        DayTradingService.get_remote_day_trading_data()
++        print(DayTradingService.get_recent_trading_date(shift=-2))
+     #     df = DayTradingService.get_feature_datas('301231', '2023-01-03', '2024-06-05')
+     #     print(df)
+ 
+diff --git a/stockApp/service/stockGroup/stockGroupService.py b/stockApp/service/stockGroup/stockGroupService.py
+index 0a241f2..dbd760e 100644
+--- a/stockApp/service/stockGroup/stockGroupService.py
++++ b/stockApp/service/stockGroup/stockGroupService.py
+@@ -24,6 +24,17 @@ class StockGroupService:
+ 
+     @staticmethod
+     def get_stock_code_date_list(name: str, start_time: Union[pd.Timestamp, str], end_time: Union[pd.Timestamp, str]) -> Dict[str, object]:
++        """
++        获取指定日期范围的股票日交易列表
++
++        Parameters
++        ----------
++        name: 股票组 比如 上证300
++
++        Return
++        ------
++        """
++
+         if name:
+             stocks = StockGroupService.get_stock_group_list(name)
+         else:
+diff --git a/stockApp/service/strategies/KDJ_strategy.py b/stockApp/service/strategies/KDJ_strategy.py
+index d20be54..4555a39 100644
+--- a/stockApp/service/strategies/KDJ_strategy.py
++++ b/stockApp/service/strategies/KDJ_strategy.py
+@@ -3,8 +3,9 @@ import sys
+ sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
+ import numpy as np
+ import pandas as pd
+-from stockApp.service.base_strategy import BaseStrategy
+-from stockApp.service.MACD_strategy import MACDStragety
++from stockApp.service.strategies.baseStrategy import BaseStrategy
++from stockApp.service.strategies.MACD_strategy import MACDStragety
++
+ 
+ # kdj金叉
+ def get_KDJ(df, approach=False, plus=False):
+diff --git a/stockApp/service/strategies/__init__.py b/stockApp/service/strategies/__init__.py
+index e69de29..139597f 100644
+--- a/stockApp/service/strategies/__init__.py
++++ b/stockApp/service/strategies/__init__.py
+@@ -0,0 +1,2 @@
++
++
+diff --git a/stockApp/service/strategies/baseStrategy.py b/stockApp/service/strategies/baseStrategy.py
+index 14b2b43..6c265d8 100644
+--- a/stockApp/service/strategies/baseStrategy.py
++++ b/stockApp/service/strategies/baseStrategy.py
+@@ -1,15 +1,11 @@
+ # -*- coding: utf-8 -*-
+ import sys
+-
+-from modules.dataLoader.stockData.eastIntradayData import EastIntradayData
+-
+-sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
+-from stockApp.dao.stockInfo import StockInfo
+-from stockApp.dao.dayTrading import DayTrading
++sys.path.append("/Users/vega/workspace/codes/py_space/working/stockApi")
+ import pandas as pd
+ from core.utils.date_utils import get_last_day, get_first_day
+ #为了实现虚函数
+ from abc import ABC
++from stockApp.modules.dataLoader.stockData.eastIntradayData import EastIntradayData
+ 
+ 
+ class BaseStrategy(ABC):
+diff --git a/stockApp/service/strategies/eye_and_earth_strategy.py b/stockApp/service/strategies/eye_and_earth_strategy.py
+index 3c7edb5..7a59e31 100644
+--- a/stockApp/service/strategies/eye_and_earth_strategy.py
++++ b/stockApp/service/strategies/eye_and_earth_strategy.py
+@@ -1,10 +1,11 @@
+ # -*- coding: utf-8 -*-
+ import sys
+ sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
+-from stock_app.service.base_strategy import BaseStrategy
+-from stock_app.__init__ import utils
++from stockApp.service.strategies.baseStrategy import BaseStrategy
++from stockApp.__init__ import utils
+ import talib
+ 
++
+ # 天眼地量筛选策略
+ class EyeAndEarthStrategy(BaseStrategy):
+ 
+diff --git a/stockApp/service/strategies/simpleDealStrategy.py b/stockApp/service/strategies/simpleDealStrategy.py
+index 594e903..cb05ea2 100644
+--- a/stockApp/service/strategies/simpleDealStrategy.py
++++ b/stockApp/service/strategies/simpleDealStrategy.py
+@@ -1,20 +1,11 @@
+ # -*- coding: utf-8 -*-
+ import sys
+-sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
+-from stock_app.__init__ import send, utils, current_app
+-from stock_app.model.day_trading import DayTrading
+-from stock_app.model.stock import Stock
+-from chinese_calendar import is_workday
+-
+-
+-def get_next_day(start_date):
+-    minus_days = 1
+-    next_day = utils["date"].skip_date(start_date, minus_days)
+-    while not is_workday(next_day):
+-        next_day = utils["date"].skip_date(next_day.strftime('%Y-%m-%d'), minus_days)
+-        minus_days = 1 + minus_days
+-    return next_day.strftime('%Y-%m-%d')
+ 
++sys.path.append("/Users/vega/workspace/codes/py_space/working/stockApi")
++from stockApp.__init__ import send, utils, current_app
++from stockApp.dao.dayTrading import DayTrading
++from stockApp.dao.stockInfo import StockInfo
++from stockApp.service.dayTrading.dayTradingService import DayTradingService
+ 
+ '''
+ start_date, end_date为2015-08-15格式
+@@ -24,17 +15,16 @@ def get_negative_include_positive(date):
+     if not common_util.is_date(date):
+         return send(-1, data="", msg="日期格式错误")
+ 
+-    # 昨天
+-    start_date = get_next_day(date)
+-
+     # 昨天的昨天
+-    the_day_before_yesterday = get_next_day(start_date)
++    the_day_before_yesterday = DayTradingService.get_recent_trading_date(data=date, shift=-2)
++
++    if not the_day_before_yesterday:
++        return []
+ 
+     result_codes = []
+ 
+     # 查询出所有股票代码
+-    stock_obj = Stock()
+-    all_stock_codes = stock_obj.get_all_stock_codes()
++    all_stock_codes = StockInfo.get_all_stocks()
+ 
+     for stock in all_stock_codes:
+         try:
+@@ -74,8 +64,8 @@ def get_negative_include_positive(date):
+ '''
+ def test_negative_include_positive_rate(today_date):
+     result_codes = get_negative_include_positive(today_date)
++    obj = DayTrading()
+     for code in result_codes:
+-        obj = DayTrading()
+         trading_list = obj.get_stock_all_day_trading(code)
+         for i in range(0, len(trading_list)):
+             try:
+diff --git a/stockApp/service/strategies/turtleTradingActStrategy.py b/stockApp/service/strategies/turtleTradingActStrategy.py
+index 3ec85fe..f8fde57 100644
+--- a/stockApp/service/strategies/turtleTradingActStrategy.py
++++ b/stockApp/service/strategies/turtleTradingActStrategy.py
+@@ -1,6 +1,6 @@
+ # -*- coding: utf-8 -*-
+ import sys, datetime
+-sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
++sys.path.append("/Users/vega/workspace/codes/py_space/working/stockApi")
+ import pandas as pd
+ 
+ # ==========计算海龟交易法则的买卖点
+diff --git a/stockApp/service/strategies/wbottomStrategy.py b/stockApp/service/strategies/wbottomStrategy.py
+index b880a5d..8656969 100644
+--- a/stockApp/service/strategies/wbottomStrategy.py
++++ b/stockApp/service/strategies/wbottomStrategy.py
+@@ -4,7 +4,7 @@ import sys
+ from modules.dataLoader.stockData.eastIntradayData import EastIntradayData
+ 
+ sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
+-from stockApp.service.strategies.base_strategy import BaseStrategy
++from stockApp.service.strategies.baseStrategy import BaseStrategy
+ from stockApp.service.strategies.MACD_strategy import MACDStragety
+ import operator
+ import datetime
+diff --git a/stockApp/test.py b/stockApp/test.py
+index 5b96bad..40919f9 100644
+--- a/stockApp/test.py
++++ b/stockApp/test.py
+@@ -4,7 +4,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
+ from typing import Union
+ import pandas as pd
+ import numpy as np
++
+ from modules.dataHandler.dumpHDF5 import DumpDataBase
++from modules.workflow.record_temp import SignalRecord
+ from service.dayTrading.dayTradingService import DayTradingService
+ from service.stockGroup.stockGroupService import StockGroupService
+ 
+@@ -13,6 +15,8 @@ sys.path.append("/Users/vega/workspace/codes/py_space/working/stockApi")
+ from stockApp import app
+ from stockApp.modules.init import init
+ from stockApp.modules.dataHandler.dataset import DatasetH
++from stockApp.modules.contrib.model.gbdt import LGBModel
++from stockApp.modules.workflow import R
+ 
+ 
+ if __name__ == "__main__":
+@@ -42,13 +46,12 @@ if __name__ == "__main__":
+     def feature_process_task(partition_df, calendars_df):
+         instance = DumpDataBase(stock_app_dir=provider_uri)
+         with app.app_context():
+-            # for row in partition_df.itertuples():
+-            #     code = getattr(row, instance.symbol_field_name)
+-            #     begin = getattr(row, instance.INSTRUMENTS_START_FIELD)
+-            #     end = getattr(row, instance.INSTRUMENTS_END_FIELD)
+-            featrue_df = DayTradingService.get_feature_datas('600083', '2008-01-02', '2020-07-31')
+-            print(featrue_df)
+-            instance.save_features('600083', featrue_df, calendars_df)
++            for row in partition_df.itertuples():
++                code = getattr(row, instance.symbol_field_name)
++                begin = getattr(row, instance.INSTRUMENTS_START_FIELD)
++                end = getattr(row, instance.INSTRUMENTS_END_FIELD)
++                featrue_df = DayTradingService.get_feature_datas(code, start_date=begin, end_date=end)
++                instance.save_features(code, featrue_df, calendars_df)
+ 
+     def features_task(instruments_df, calendars_df):
+         # 要分割的份数
+@@ -76,6 +79,7 @@ if __name__ == "__main__":
+ 
+ 
+     # with app.app_context():
++    #     DayTrading.clear_tables()
+     #     execute_dump_task('2019-01-01', '2020-01-01')
+     # ssss
+ 
+@@ -83,11 +87,19 @@ if __name__ == "__main__":
+     init(provider_uri=provider_uri)
+ 
+     data_handler_config = {
+-        "start_time": "2008-01-01",
+-        "end_time": "2020-08-01",
+-        "fit_start_time": "2008-01-01",
+-        "fit_end_time": "2014-12-31",
++        "start_time": "2020-01-02",
++        "end_time": "2020-07-31",
++        "fit_start_time": "2020-01-02",
++        "fit_end_time": "2020-07-31",
+         "instruments": ["600083"],
++        # "infer_processors": [
++        #     {"class": "RobustZScoreNorm", "kwargs": {"fields_group": "feature", "clip_outlier": "true"}},
++        #     {"class": "Fillna", "kwargs": {"fields_group": "feature"}},
++        # ],
++        # "learn_processors": [
++        #     "DropnaLabel",
++        #     {"class": "CSRankNorm", "kwargs": {"fields_group": "label"}},  # CSRankNorm
++        # ],
+     }
+ 
+     kwargs = {
+@@ -97,14 +109,55 @@ if __name__ == "__main__":
+                     "kwargs": data_handler_config,
+                 },
+                 "segments": {
+-                    "train": ("2013-01-01", "2014-12-31"),
+-                    "valid": ("2015-01-01", "2016-12-31"),
+-                    "test": ("2019-01-01", "2020-08-01"),
++                    "train": ("2020-01-02", "2020-07-21"),
++                    "valid": ("2020-01-02", "2020-07-21"),
++                    "test": ("2020-07-20", "2020-07-24"),
+                 },
+     }
++
+     with app.app_context():
+-        datasetH = DatasetH(**kwargs)
+-    # dataset = init_instance_by_config(task["dataset"])
++        with R.start(experiment_name="train_model"):
++            dataset = DatasetH(**kwargs)
++            kwargs = {
++                # "loss": "mse",
++                # "colsample_bytree": 0.8879,
++                # "learning_rate": 0.0421,
++                # "subsample": 0.8789,
++                # "lambda_l1": 205.6999,
++                # "lambda_l2": 580.9768,
++                # "max_depth": 8,
++                # "num_leaves": 210,
++                # "num_threads": 20,
++                'boosting_type': 'gbdt',  # 设置提升类型
++                'objective': 'multiclass',  # 目标函数
++                'num_class': 3,
++                # 'metric': 'binary_logloss',  # 评估函数
++                'num_leaves': 31,  # 叶子节点数
++                'learning_rate': 0.01,  # 学习速率
++                'feature_fraction': 0.8,  # 建树的特征选择比例
++                'bagging_fraction': 0.8,  # 建树的样本采样比例
++                'bagging_freq': 5,  # k 意味着每 k 次迭代执行bagging
++                'seed': 100,
++                'n_jobs': -1,
++                'verbose': -1,
++                'lambda_l1': 0.1,
++                'lambda_l2': 0.2,
++            }
++            model = LGBModel(**kwargs)
++
++            model.fit(dataset)
++            print(model.predict(dataset=dataset, segment='test'))
++
++            # R.save_objects(trained_model=model)
++            # rid = R.get_recorder().id
++            # print(rid, '-----rid-------')
++            #
++            # # prediction
++            # recorder = R.get_recorder()
++            # sr = SignalRecord(model, dataset, recorder)
++            # sr.generate()
++
++
+     # from modules.dataHandler.data import D
+     # print(D, "===x=====")
+ 
+diff --git a/stockApp/test3.py b/stockApp/test3.py
+index 72f91f0..fada7aa 100644
+--- a/stockApp/test3.py
++++ b/stockApp/test3.py
+@@ -1,4 +1,4 @@
+-import sys
++import sys, datetime
+ 
+ from dao.dayTrading import DayTrading
+ from modules.dataHandler.normalize1d import Normalize1d
+@@ -16,6 +16,8 @@ from modules.dataHandler.data import Cal
+ from service.dayTrading.dayTradingService import DayTradingService
+ 
+ if __name__ == '__main__':
++
++
+     # cache_path = "/Users/vega/workspace/codes/py_space/working/stockApi/test2.py"
+     # cache_path = Path(cache_path)
+     # meta_path = cache_path.with_suffix(".meta")
+@@ -26,14 +28,97 @@ if __name__ == '__main__':
+     #
+     # hdf5_path = Path(provider_uri, 'calendars', "day.h5")
+     # df1 = pd.read_hdf(hdf5_path, key='calendar')
+-    #
++    import akshare as ak
++    import talib
++    from sklearn.metrics import accuracy_score
++    import lightgbm as lgb
++
++    def get_codeData(code="sz002241"):
++        df = ak.stock_zh_a_daily(symbol=code, start_date="20100101", end_date="20210314", adjust="qfq")
++
++        df['pre_close'] = df['close'].shift(1)  # 昨日收盘价
++        df['post_close'] = df['close'].shift(-5)  # 明日收盘价
++
++        df['close-open'] = (df['close'] - df['open']) / df['open']  # 对于开盘价涨跌百分比
++        df['high-low'] = (df['high'] - df['low']) / df['low']  # 震幅
++        df['price_change'] = df['close'] - df['pre_close']  # 今日涨跌
++        df['target'] = df['post_close'] - df['close']
++        # df['p_change'] = (df['close']-df['pre_close'])/df['pre_close']*100  #今日涨跌百分比
++
++        df['MA5'] = df['close'].rolling(5).mean()  # 5日均线，下同
++        df['MA10'] = df['close'].rolling(10).mean()
++        df['MA20'] = df['close'].rolling(20).mean()
++
++        df['RSI6'] = talib.RSI(df['close'], timeperiod=6)
++        df['RSI12'] = talib.RSI(df['close'], timeperiod=12)
++        df['RSI24'] = talib.RSI(df['close'], timeperiod=24)
++        # df["KAMA"] = talib.KAMA(df['close'], timeperiod=30)
++        # df['upper'], df['middle'], df['lower'] = talib.BBANDS(df['close'], timeperiod=20, matype=MA_Type.T3)
++
++        df['MOM'] = talib.MOM(df['close'], timeperiod=5)
++        df['EMA12'] = talib.EMA(df['close'], timeperiod=12)
++        df['EMA26'] = talib.EMA(df['close'], timeperiod=26)
++
++        df['DIFF'], df['DEA'], df['MACD'] = talib.MACD(df['close'], fastperiod=12, slowperiod=26, signalperiod=9)
++        df['MACD'] = df['MACD'] * 2
++        df.dropna(inplace=True)
++        return df
++
++    df = get_codeData(code="sz000789")
++    df.drop(columns=['date'], inplace=True)
++    target = 'target'
++
++    X = df.loc[:, df.columns != target]
++    y = df.loc[:, df.columns == target]
++    y = y.copy()
++    y.loc[y['target'] >= 0, 'target'] = 1
++    y.loc[y['target'] < 0, 'target'] = 0
++
++    split = int(len(X) * 0.8)
++    X_train, X_test = X[:split], X[split:]
++    y_train, y_test = y[:split], y[split:]
++
++    # 转换为Dataset数据格式
++    lgb_train = lgb.Dataset(X_train, label=y_train)
++    lgb_eval = lgb.Dataset(X_test, label=y_test)
++
++
++    # 参数
++    params = {
++        'boosting_type': 'gbdt',  # 设置提升类型
++        'objective': 'multiclass',  # 目标函数
++        'num_class': 2,
++        'metric': 'multi_logloss',  # 评估函数
++        'num_leaves': 31,  # 叶子节点数
++        'learning_rate': 0.01,  # 学习速率
++        'feature_fraction': 0.8,  # 建树的特征选择比例
++        'bagging_fraction': 0.8,  # 建树的样本采样比例
++        'bagging_freq': 5,  # k 意味着每 k 次迭代执行bagging
++        'seed': 100,
++        'n_jobs': -1,
++        'verbose': -1,
++        'lambda_l1': 0.1,
++        'lambda_l2': 0.2,
++    }
++
++    # 模型训练
++    gbm = lgb.train(params, lgb_train, num_boost_round=500)
++    y_pred_prob = gbm.predict(X_test, num_iteration=gbm.best_iteration)
++    print(y_pred_prob)
++    y_pred = np.argmax(y_pred_prob, axis=1)
++    # print(y_pred)
++    print(y_test.shape[0], len(y_pred))
++    score = accuracy_score(y_pred, y_test)
++    print('准确率： ' + str(round(score * 100, 2)) + '%')
++    xxxxx
++
+     hdf5_path = '/Users/vega/workspace/codes/py_space/working/stockApi/stockApp/crontab/_datas/store.h5'
+     store = pd.HDFStore(hdf5_path, mode='r')
+ 
+     key = '/features/sh600083'
+-    print(key in store.keys())
+-    # df = store[key]
+-    # print(df)
++    print(store.keys())
++    df = store[key]
++    print(df)
+     # print(df)
+     # print(df.index.names)
+     # print(df[df.index.get_level_values('id')==8119]['close'])
+@@ -81,14 +166,14 @@ if __name__ == '__main__':
+     ddd
+     from concurrent.futures import ThreadPoolExecutor, as_completed
+ 
+-    with Path('/Users/vega/workspace/codes/py_space/案例/股票/qlib/.qlib/qlib_data/cn_data/features/sh600083/volume.day.bin').open("rb") as fp:
+-        _old_data = np.fromfile(fp, dtype="<f")
+-        _old_index = _old_data[0]
+-
+-        # print(_old_data, _old_index, _old_data[len(_old_data)-1])
+-        # xxxx
+-        # '20200101', '20200201'
+-        print(_old_data[0:11])
++    # with Path('/Users/vega/workspace/codes/py_space/案例/股票/qlib/.qlib/qlib_data/cn_data/features/sh600083/close.day.bin').open("rb") as fp:
++    #     _old_data = np.fromfile(fp, dtype="<f")
++    #     _old_index = _old_data[0]
++    #
++    #     # print(_old_data, _old_index, _old_data[len(_old_data)-1])
++    #     # xxxx
++    #     # '20200101', '20200201'
++    #     print(_old_data[0:11])
+     with app.app_context():
+         res = DayTradingService.get_feature_datas('600083', '19991110', '19991125')
+         _close = Normalize1d.get_first_close(res)

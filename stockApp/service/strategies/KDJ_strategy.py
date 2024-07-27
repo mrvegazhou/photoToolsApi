@@ -3,8 +3,9 @@ import sys
 sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
 import numpy as np
 import pandas as pd
-from stockApp.service.base_strategy import BaseStrategy
-from stockApp.service.MACD_strategy import MACDStragety
+from stockApp.service.strategies.baseStrategy import BaseStrategy
+from stockApp.service.strategies.MACD_strategy import MACDStragety
+
 
 # kdj金叉
 def get_KDJ(df, approach=False, plus=False):

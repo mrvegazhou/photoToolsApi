@@ -1,6 +1,8 @@
 from typing import Callable, Union, List, Tuple, Dict, Text, Optional
 import pandas as pd
 from copy import copy, deepcopy
+from inspect import getfullargspec
+from core.log.logger import get_module_logger
 from ...common.serial import Serializable
 from .handler import DataHandler, DataHandlerLP
 from ...common import init_instance_by_config
@@ -173,7 +175,10 @@ class DatasetH(Dataset):
         slc : please refer to the docs of `prepare`
                 NOTE: it may not be an instance of slice. It may be a segment of `segments` from `def prepare`
         """
+        # hasattr(self, "fetch_kwargs"): True
         if hasattr(self, "fetch_kwargs"):
+            # kwargs: {'col_set': 'feature', 'data_key': 'infer'}
+            # self.fetch_kwargs: {}
             return self.handler.fetch(slc, **kwargs, **self.fetch_kwargs)
         else:
             return self.handler.fetch(slc, **kwargs)

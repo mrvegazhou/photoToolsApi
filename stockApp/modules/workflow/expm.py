@@ -281,13 +281,13 @@ class ExpManager:
         """
         Get the default tracking URI from qlib.config.C
         """
-        if "kwargs" not in C.exp_manager or "uri" not in C.exp_manager["kwargs"]:
+        if "uri" not in C.exp_manager:
             raise ValueError("The default URI is not set in qlib.config.C")
-        return C.exp_manager["kwargs"]["uri"]
+        return C.exp_manager["uri"]
 
     @default_uri.setter
     def default_uri(self, value):
-        C.exp_manager.setdefault("kwargs", {})["uri"] = value
+        C.exp_manager["uri"] = value
 
     @property
     def uri(self):

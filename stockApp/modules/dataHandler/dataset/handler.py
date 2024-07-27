@@ -2,6 +2,8 @@
 import warnings
 from typing import Callable, Union, Tuple, List, Iterator, Optional
 import pandas as pd
+
+from .utils import fetch_df_by_index, fetch_df_by_col
 from ...common.serial import Serializable
 from .loader import DataLoader
 from ...common import lazy_sort_index, init_instance_by_config
@@ -229,9 +231,6 @@ class DataHandler(Serializable):
         squeeze: bool = False,
         proc_func: Callable = None,
     ):
-        # This method is extracted for sharing in subclasses
-        from .storage import BaseHandlerStorage  # pylint: disable=C0415
-
         # Following conflicts may occur
         # - Does [20200101", "20210101"] mean selecting this slice or these two days?
         # To solve this issue
@@ -243,7 +242,7 @@ class DataHandler(Serializable):
                 selector = slice(*selector)
             except ValueError:
                 get_module_logger("DataHandlerLP").info(f"Fail to converting to query to slice. It will used directly")
-        # print(data_storage, isinstance(data_storage, pd.DataFrame), proc_func is not None, "====isinstance(data_storage, pd.DataFrame)====")
+        # print(data_storage, isinstance(data_storage, pd.DataFrame), proc_func is not None, proc_func, "====isinstance(data_storage, pd.DataFrame)====")
         if isinstance(data_storage, pd.DataFrame):
             data_df = data_storage
             if proc_func is not None:
@@ -255,17 +254,6 @@ class DataHandler(Serializable):
                 # Fetch column  first will be more friendly to SepDataFrame
                 data_df = fetch_df_by_col(data_df, col_set)
                 data_df = fetch_df_by_index(data_df, selector, level, fetch_orig=self.fetch_orig)
-        elif isinstance(data_storage, BaseHandlerStorage):
-            if not data_storage.is_proc_func_supported():
-                if proc_func is not None:
-                    raise ValueError(f"proc_func is not supported by the storage {type(data_storage)}")
-                data_df = data_storage.fetch(
-                    selector=selector, level=level, col_set=col_set, fetch_orig=self.fetch_orig
-                )
-            else:
-                data_df = data_storage.fetch(
-                    selector=selector, level=level, col_set=col_set, fetch_orig=self.fetch_orig, proc_func=proc_func
-                )
         else:
             raise TypeError(f"data_storage should be pd.DataFrame|HashingStockStorage, not {type(data_storage)}")
 
@@ -653,7 +641,7 @@ class DataHandlerLP(DataHandler):
         -------
         pd.DataFrame:
         """
-
+        print(self._get_df_by_key(data_key), data_key, '----data_key----')
         return self._fetch_data(
             data_storage=self._get_df_by_key(data_key),
             selector=selector,

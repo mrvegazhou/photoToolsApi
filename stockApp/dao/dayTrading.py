@@ -195,7 +195,7 @@ class DayTrading:
 
     @staticmethod
     def clear_tables():
-        for i in range(50):
+        for i in range(10):
             sql = '''
                 TRUNCATE TABLE "stock"."day_trading_{}";
             '''.format(i)

@@ -1,0 +1,523 @@
+diff --git a/stockApp/modules/dataHandler/alpha158.py b/stockApp/modules/dataHandler/alpha158.py
+deleted file mode 100644
+index e73c9b4..0000000
+--- a/stockApp/modules/dataHandler/alpha158.py
++++ /dev/null
+@@ -1,57 +0,0 @@
+-# coding:utf8
+-from modules.dataHandler.dataHandlerLP import DataHandlerLP
+-
+-_DEFAULT_LEARN_PROCESSORS = [
+-    {"class": "DropnaLabel"},
+-    {"class": "CSZScoreNorm", "kwargs": {"fields_group": "label"}},
+-]
+-
+-def check_transform_proc(proc_l, fit_start_time, fit_end_time):
+-    new_l = []
+-    for p in proc_l:
+-        new_l.append(p)
+-    return new_l
+-
+-class Alpha158(DataHandlerLP):
+-
+-    def __init__(
+-            self,
+-            instruments="csi500",
+-            start_time=None,
+-            end_time=None,
+-            freq="day",
+-            infer_processors=[],
+-            learn_processors=_DEFAULT_LEARN_PROCESSORS,
+-            fit_start_time=None,
+-            fit_end_time=None,
+-            process_type=DataHandlerLP.PTYPE_A,
+-            filter_pipe=None,
+-            inst_processors=None,
+-            **kwargs
+-    ):
+-        infer_processors = check_transform_proc(infer_processors, fit_start_time, fit_end_time)
+-        learn_processors = check_transform_proc(learn_processors, fit_start_time, fit_end_time)
+-
+-        data_loader = {
+-            "class": "QlibDataLoader",
+-            "kwargs": {
+-                "config": {
+-                    "feature": self.get_feature_config(),
+-                    "label": kwargs.pop("label", self.get_label_config()),
+-                },
+-                "filter_pipe": filter_pipe,
+-                "freq": freq,
+-                "inst_processors": inst_processors,
+-            },
+-        }
+-
+-        super().__init__(
+-            instruments=instruments,
+-            start_time=start_time,
+-            end_time=end_time,
+-            data_loader=data_loader,
+-            infer_processors=infer_processors,
+-            learn_processors=learn_processors,
+-            process_type=process_type,
+-            **kwargs
+-        )
+\ No newline at end of file
+diff --git a/stockApp/modules/dataHandler/dataHandlerLP.py b/stockApp/modules/dataHandler/dataHandlerLP.py
+deleted file mode 100644
+index ab94e94..0000000
+--- a/stockApp/modules/dataHandler/dataHandlerLP.py
++++ /dev/null
+@@ -1,100 +0,0 @@
+-# coding=utf-8
+-import pandas as pd
+-
+-class DataHandlerLP(DataHandler):
+-    # based on `self._data`, _infer and _learn are genrated after processors
+-    _infer: pd.DataFrame  # data for inference
+-    _learn: pd.DataFrame  # data for learning models
+-
+-    # data key
+-    DK_R: DATA_KEY_TYPE = "raw"
+-    DK_I: DATA_KEY_TYPE = "infer"
+-    DK_L: DATA_KEY_TYPE = "learn"
+-    # map data_key to attribute name
+-    ATTR_MAP = {DK_R: "_data", DK_I: "_infer", DK_L: "_learn"}
+-
+-    # process type
+-    PTYPE_I = "independent"
+-    # - self._infer will be processed by shared_processors + infer_processors
+-    # - self._learn will be processed by shared_processors + learn_processors
+-
+-    # NOTE:
+-    PTYPE_A = "append"
+-
+-    # - self._infer will be processed by shared_processors + infer_processors
+-    # - self._learn will be processed by shared_processors + infer_processors + learn_processors
+-    #   - (e.g. self._infer processed by learn_processors )
+-
+-    def __init__(
+-            self,
+-            instruments=None,
+-            start_time=None,
+-            end_time=None,
+-            data_loader: Union[dict, str, DataLoader] = None,
+-            infer_processors: List = [],
+-            learn_processors: List = [],
+-            shared_processors: List = [],
+-            process_type=PTYPE_A,
+-            drop_raw=False,
+-            **kwargs,
+-    ):
+-        """
+-        Parameters
+-        ----------
+-        infer_processors : list
+-            - list of <description info> of processors to generate data for inference
+-
+-            - example of <description info>:
+-
+-            .. code-block::
+-
+-                1) classname & kwargs:
+-                    {
+-                        "class": "MinMaxNorm",
+-                        "kwargs": {
+-                            "fit_start_time": "20080101",
+-                            "fit_end_time": "20121231"
+-                        }
+-                    }
+-                2) Only classname:
+-                    "DropnaFeature"
+-                3) object instance of Processor
+-
+-        learn_processors : list
+-            similar to infer_processors, but for generating data for learning models
+-
+-        process_type: str
+-            PTYPE_I = 'independent'
+-
+-            - self._infer will be processed by infer_processors
+-
+-            - self._learn will be processed by learn_processors
+-
+-            PTYPE_A = 'append'
+-
+-            - self._infer will be processed by infer_processors
+-
+-            - self._learn will be processed by infer_processors + learn_processors
+-
+-              - (e.g. self._infer processed by learn_processors )
+-        drop_raw: bool
+-            Whether to drop the raw data
+-        """
+-
+-        # Setup preprocessor
+-        self.infer_processors = []  # for lint
+-        self.learn_processors = []  # for lint
+-        self.shared_processors = []  # for lint
+-        for pname in "infer_processors", "learn_processors", "shared_processors":
+-            for proc in locals()[pname]:
+-                getattr(self, pname).append(
+-                    init_instance_by_config(
+-                        proc,
+-                        None if (isinstance(proc, dict) and "module_path" in proc) else processor_module,
+-                        accept_types=processor_module.Processor,
+-                    )
+-                )
+-
+-        self.process_type = process_type
+-        self.drop_raw = drop_raw
+-        super().__init__(instruments, start_time, end_time, data_loader, **kwargs)
+\ No newline at end of file
+diff --git a/stockApp/service/strategies/baseStrategy.py b/stockApp/service/strategies/baseStrategy.py
+new file mode 100644
+index 0000000..14b2b43
+--- /dev/null
++++ b/stockApp/service/strategies/baseStrategy.py
+@@ -0,0 +1,92 @@
++# -*- coding: utf-8 -*-
++import sys
++
++from modules.dataLoader.stockData.eastIntradayData import EastIntradayData
++
++sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
++from stockApp.dao.stockInfo import StockInfo
++from stockApp.dao.dayTrading import DayTrading
++import pandas as pd
++from core.utils.date_utils import get_last_day, get_first_day
++#为了实现虚函数
++from abc import ABC
++
++
++class BaseStrategy(ABC):
++
++    # 通过股票名称过滤
++    @staticmethod
++    def name_filter(df, name_list):
++        """
++        过滤掉符合条件的股票：根据名字过滤，比如ST
++        :param data:
++        :param name_list:
++        :return:
++        """
++        return df[~df['code'].str.contains("|".join(name_list))]
++
++    # 通过日交易获取4个季度的平均的成交金额，成交量，换手率
++    @staticmethod
++    def get_vol_handoff_quarter_avg(code, year, quarter=1):
++        intraday = EastIntradayData()
++        start_date = get_first_day(year, 1).strftime('%Y%m%d')
++        end_date = get_last_day(year, 12).strftime('%Y%m%d')
++        df = intraday.get_intraday_data(code, begin=start_date, end=end_date)
++
++        df.date = pd.to_datetime(df.date)
++        df = df.set_index("date")
++        df = df.to_period('Q')
++        quarter_str = "{}Q{}".format(str(year), str(quarter))
++        df = df[df.index==quarter_str]
++
++        df["volume"] = pd.to_numeric(df["volume"])
++        # 成交量（累计 单位：股）
++        volume_avg = df['volume'].mean()
++
++        df["turnover"] = pd.to_numeric(df["turnover"])
++        # 成交额（单位：人民币元）
++        amount_avg = df['turnover'].mean()
++
++        # 换手率
++        df["turnover_rate"] = pd.to_numeric(df["turnover_rate"])
++        turn_avg = df['turnover_rate'].mean()
++
++        return volume_avg, amount_avg, turn_avg
++
++
++    # 功能：计算百分比
++    # 参数：分子，分母
++    @staticmethod
++    def percentage(numerator, denominator):
++        return numerator / denominator * 100
++
++    # 计算涨幅
++    @staticmethod
++    def calc_gain(close, open):
++        if close == 0 or open == 0:
++            return 0
++        rang = close - open
++        gain = (rang / open) * 100
++        gain = '%.2f' % gain
++        return gain
++
++    # 计算涨停价格
++    @staticmethod
++    def calc_limit_price(pre_close):
++        if pre_close == 0:
++            return 0
++        limit = pre_close + pre_close * 0.1
++        limit = '%.2f' % limit
++        return limit
++
++    # 成交量加权平均价格
++    @staticmethod
++    def vwap(df):
++        v = df['volume'].values
++        tp = (df['low'] + df['close'] + df['high']).div(3).values
++        return df.assign(vwap=(tp * v).cumsum() / v.cumsum())
++
++
++if __name__ == "__main__":
++    # BaseStrategy.get_vol_handoff_quarter_avg('sz000002', 2021)
++    pass
+diff --git a/stockApp/service/strategies/base_strategy.py b/stockApp/service/strategies/base_strategy.py
+deleted file mode 100644
+index 59921e4..0000000
+--- a/stockApp/service/strategies/base_strategy.py
++++ /dev/null
+@@ -1,139 +0,0 @@
+-# -*- coding: utf-8 -*-
+-import sys
+-sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
+-from stock_app.model.stock import Stock
+-from stock_app.model.day_trading import DayTrading
+-from stock_app.api.request_api import api_stock_day_trading_info, api_stock_base_indicator, api_stock_day_trading_info2
+-import pandas as pd
+-from core.utils.date_utils import get_last_day, get_first_day
+-#为了实现虚函数
+-from abc import ABC
+-
+-class BaseStrategy(ABC):
+-
+-    # 获取所有股票代码
+-    @staticmethod
+-    def get_all_stocks():
+-        stock = Stock()
+-        return stock.get_all_stock_codes()
+-
+-
+-    # 获取所有股票的dataframe格式
+-    @staticmethod
+-    def get_all_stocks_df():
+-        return pd.DataFrame([[s.name, s.code] for s in BaseStrategy.get_all_stocks()], columns=["name", "code"])
+-
+-
+-    # A股个股指标
+-    @staticmethod
+-    def sync_stock_base_indicator(code, date):
+-        indicator_df = api_stock_base_indicator(code)
+-        tmp_df = indicator_df[indicator_df['trade_date'] == date]
+-        return indicator_df
+-
+-
+-
+-    # 获取股票各种指标
+-    @staticmethod
+-    def get_stock_special_indicators(code, start_date, end_date):
+-        df = api_stock_day_trading_info(code, start_date, end_date)
+-        if df.empty:
+-            return pd.DataFrame()
+-        df['pre_close'] = df['close'].shift(1)
+-        df['chg_pct'] = round((df['close'] - df['pre_close']) / df['pre_close'] * 100, 6)
+-        # 震幅
+-        df['close_open_pct'] = round((df['close'] - df['open']) / df['open'] * 100, 6)
+-        # 今日涨跌
+-        df['close_diff'] = df['close'] - df['pre_close']
+-
+-        df = df.fillna(0)
+-
+-        # df['RSI6'] = talib.RSI(df['close'], timeperiod=6)
+-        # df['RSI12'] = talib.RSI(df['close'], timeperiod=12)
+-        # df['RSI24'] = talib.RSI(df['close'], timeperiod=24)
+-        #
+-        # df['EMA12'] = talib.EMA(df['close'], timeperiod=12)
+-        # df['EMA26'] = talib.EMA(df['close'], timeperiod=26)
+-
+-        return df
+-
+-
+-    @staticmethod
+-    def get_stock_day_trading(code, start_date, end_date):
+-        cols = ['trading_date', 'close_price', 'high_price', 'low_price', 'open_price', 'volume', 'turnover', 'chg_pct', 'outstanding_share', 'stock_code']
+-        ret = DayTrading.get_stock_trading_list_by_SQL(code, start_date, end_date, cols)
+-        return pd.DataFrame(ret, columns=cols)
+-
+-
+-
+-
+-    # 通过股票名称过滤
+-    @staticmethod
+-    def name_filter(df, name_list):
+-        """
+-        过滤掉符合条件的股票：根据名字过滤，比如ST
+-        :param data:
+-        :param name_list:
+-        :return:
+-        """
+-        return df[ ~ df['code'].str.contains("|".join(name_list))]
+-
+-
+-    # 通过日交易获取4个季度的平均的成交金额，成交量，换手率
+-    @staticmethod
+-    def get_vol_handoff_quarter_avg(code, year, quarter=1):
+-        start_date = get_first_day(year, 1).strftime('%Y-%m-%d')
+-        end_date = get_last_day(year, 12).strftime('%Y-%m-%d')
+-        df = api_stock_day_trading_info2(code, 'd', start_date, end_date)
+-
+-        df.date = pd.to_datetime(df.date)
+-        df = df.set_index("date")
+-        df = df.to_period('Q')
+-        quarter_str = "{}Q{}".format(str(year), str(quarter))
+-        df = df[df.index==quarter_str]
+-
+-        df["volume"] = pd.to_numeric(df["volume"])
+-        # 成交量（累计 单位：股）
+-        volume_avg = df['volume'].mean()
+-
+-        df["amount"] = pd.to_numeric(df["amount"])
+-        # 成交额（单位：人民币元）
+-        amount_avg = df['amount'].mean()
+-
+-        # 换手率
+-        df["turn"] = pd.to_numeric(df["turn"])
+-        turn_avg = df['turn'].mean()
+-
+-        return volume_avg, amount_avg, turn_avg
+-
+-
+-    # 功能：计算百分比
+-    # 参数：分子，分母
+-    @staticmethod
+-    def percentage(numerator, denominator):
+-        return numerator / denominator * 100
+-
+-    # 计算涨幅
+-    @staticmethod
+-    def calc_gain(close, open):
+-        if close == 0 or open == 0:
+-            return 0
+-        rang = close - open
+-        gain = (rang / open) * 100
+-        gain = '%.2f' % gain
+-        return gain
+-
+-    # 计算涨停价格
+-    @staticmethod
+-    def calc_limit_price(pre_close):
+-        if pre_close == 0:
+-            return 0
+-        limit = pre_close + pre_close * 0.1
+-        limit = '%.2f' % limit
+-        return limit
+-
+-
+-
+-if __name__ == "__main__":
+-    print(BaseStrategy.get_stock_day_trading("sh600000", '2010-01-26', '2010-02-26'))
+-    # BaseStrategy.get_vol_handoff_quarter_avg('sz000002', 2021)
+\ No newline at end of file
+diff --git a/stockApp/service/strategies/light_GBM_strategy.py b/stockApp/service/strategies/light_GBM_strategy.py
+deleted file mode 100644
+index 93f9821..0000000
+--- a/stockApp/service/strategies/light_GBM_strategy.py
++++ /dev/null
+@@ -1,50 +0,0 @@
+-# -*- coding: utf-8 -*-
+-import sys
+-sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
+-import lightgbm as lgb
+-from sklearn.metrics import accuracy_score
+-import numpy as np
+-
+-def get_light_GBM(df):
+-    df['post_close'] = df['close'].shift(-1)  # 明日收盘价
+-    df['target'] = df['post_close'] - df['close']
+-
+-    target = 'target'
+-    X = df.loc[:, df.columns != target]
+-    y = df.loc[:, df.columns == target]
+-    y.loc[y['target'] >= 0, 'target'] = 1
+-    y.loc[y['target'] < 0, 'target'] = 0
+-    split = int(len(X) * 0.8)
+-    X_train, X_test = X[:split], X[split:]
+-    y_train, y_test = y[:split], y[split:]
+-
+-    # 转换为Dataset数据格式
+-    lgb_train = lgb.Dataset(X_train, label=y_train)
+-    lgb_eval = lgb.Dataset(X_test, label=y_test)
+-    # 参数
+-    params = {
+-        'boosting_type': 'gbdt',  # 设置提升类型
+-        'objective': 'multiclass',  # 目标函数
+-        'num_class': 2,
+-        'metric': 'multi_logloss',  # 评估函数
+-        'num_leaves': 31,  # 叶子节点数
+-        'learning_rate': 0.01,  # 学习速率
+-        'feature_fraction': 0.8,  # 建树的特征选择比例
+-        'bagging_fraction': 0.8,  # 建树的样本采样比例
+-        'bagging_freq': 5,  # k 意味着每 k 次迭代执行bagging
+-        'seed': 100,
+-        'n_jobs': -1,
+-        'verbose': -1,
+-        'lambda_l1': 0.1,
+-        'lambda_l2': 0.2,
+-    }
+-
+-    # 模型训练
+-    gbm = lgb.train(params, lgb_train, num_boost_round=500)
+-    y_pred_prob = gbm.predict(X_test, num_iteration=gbm.best_iteration)
+-    # print(y_pred_prob)
+-    y_pred = np.argmax(y_pred_prob, axis=1)
+-    # print(y_pred)
+-
+-    score = accuracy_score(y_pred, y_test)
+-    print('准确率： ' + str(round(score * 100, 2)) + '%')
+\ No newline at end of file
+diff --git a/stockApp/service/strategies/simple_deal_strategy.py b/stockApp/service/strategies/simpleDealStrategy.py
+similarity index 100%
+rename from stockApp/service/strategies/simple_deal_strategy.py
+rename to stockApp/service/strategies/simpleDealStrategy.py
+diff --git a/stockApp/service/strategies/turtle_trading_act_strategy.py b/stockApp/service/strategies/turtleTradingActStrategy.py
+similarity index 100%
+rename from stockApp/service/strategies/turtle_trading_act_strategy.py
+rename to stockApp/service/strategies/turtleTradingActStrategy.py
+diff --git a/stockApp/service/strategies/wbottom_strategy.py b/stockApp/service/strategies/wbottomStrategy.py
+similarity index 95%
+rename from stockApp/service/strategies/wbottom_strategy.py
+rename to stockApp/service/strategies/wbottomStrategy.py
+index 9438c68..b880a5d 100644
+--- a/stockApp/service/strategies/wbottom_strategy.py
++++ b/stockApp/service/strategies/wbottomStrategy.py
+@@ -1,8 +1,11 @@
+ # -*- coding: utf-8 -*-
+ import sys
++
++from modules.dataLoader.stockData.eastIntradayData import EastIntradayData
++
+ sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
+-from stock_app.service.base_strategy import BaseStrategy
+-from stock_app.service.MACD_strategy import MACDStragety
++from stockApp.service.strategies.base_strategy import BaseStrategy
++from stockApp.service.strategies.MACD_strategy import MACDStragety
+ import operator
+ import datetime
+ 
+@@ -177,18 +180,19 @@ class WBottomStragete(BaseStrategy):
+                         print('底1：index=', bottom1_idx, '  price=', bottom1, ' trade day=', trade_day[bottom1_idx])
+                         print('底2：index=', bottom2_idx, '  price=', bottom2, ' trade day=', trade_day[bottom2_idx])
+ 
+-
+     @staticmethod
+     def process():
+         try:
++            intrady = EastIntradayData()
+             if WBottomStragete.start_date is None or WBottomStragete.end_date is None:
+                 raise ValueError("日期为空")
+             starttime = datetime.datetime.now()
+             stocks = BaseStrategy.get_all_stocks_df()
++
+             for index, stock in stocks.iterrows():
+                 print(stock.code)
+                 # 加载日交易记录
+-                all_stock_kdata = BaseStrategy.get_stock_special_indicators(stock.code, WBottomStragete.start_date, WBottomStragete.end_date)
++                all_stock_kdata = intrady.get_intraday_data(stock.code, begin=WBottomStragete.start_date, end=WBottomStragete.end_date)
+                 # 交易日小于60日，不处理
+                 if all_stock_kdata is None or len(all_stock_kdata) < 60:
+                     print(stock['code'], 'is empty! --- wbottom.py Process')

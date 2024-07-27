@@ -1,0 +1,6 @@
+artifact_location: file:///Users/vega/workspace/codes/py_space/working/stockApi/stockApp/crontab/mlruns/1
+creation_time: 1719215371622
+experiment_id: '1'
+last_update_time: 1719215371622
+lifecycle_stage: active
+name: train_model

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import sys
 sys.path.append("/Users/vega/workspace/codes/py_space/working/flask-api")
-from stock_app.service.base_strategy import BaseStrategy
-from stock_app.__init__ import utils
+from stockApp.service.strategies.baseStrategy import BaseStrategy
+from stockApp.__init__ import utils
 import talib
+
 
 # 天眼地量筛选策略
 class EyeAndEarthStrategy(BaseStrategy):

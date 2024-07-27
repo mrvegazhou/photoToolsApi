@@ -1,0 +1,65 @@
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git reset HEAD <file>..." to unstage)
+
+	deleted:    modules/dataHandler/alpha158.py
+	deleted:    modules/dataHandler/dataHandlerLP.py
+	new file:   service/strategies/baseStrategy.py
+	deleted:    service/strategies/base_strategy.py
+	deleted:    service/strategies/light_GBM_strategy.py
+	renamed:    service/strategies/simple_deal_strategy.py -> service/strategies/simpleDealStrategy.py
+	renamed:    service/strategies/turtle_trading_act_strategy.py -> service/strategies/turtleTradingActStrategy.py
+	renamed:    service/strategies/wbottom_strategy.py -> service/strategies/wbottomStrategy.py
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git checkout -- <file>..." to discard changes in working directory)
+
+	modified:   crontab/_datas/store.h5
+	modified:   dao/dayTrading.py
+	modified:   modules/common/config.py
+	modified:   modules/common/mod.py
+	modified:   modules/contrib/data/handler.py
+	modified:   modules/dataHandler/base.py
+	modified:   modules/dataHandler/cache.py
+	modified:   modules/dataHandler/data.py
+	modified:   modules/dataHandler/dataset/__init__.py
+	modified:   modules/dataHandler/dataset/handler.py
+	modified:   modules/dataHandler/dataset/loader.py
+	modified:   modules/dataHandler/dataset/processor.py
+	modified:   modules/dataHandler/dataset/utils.py
+	modified:   modules/dataHandler/dumpHDF5.py
+	modified:   modules/dataHandler/normalize1d.py
+	modified:   modules/dataHandler/ops.py
+	modified:   modules/dataHandler/storage/file_storage.py
+	modified:   modules/dataLoader/stockData/eastDetailInfo.py
+	modified:   modules/workflow/__init__.py
+	modified:   modules/workflow/expm.py
+	modified:   modules/workflow/recorder.py
+	modified:   service/dayTrading/dayTradingService.py
+	modified:   service/stockGroup/stockGroupService.py
+	modified:   service/strategies/KDJ_strategy.py
+	modified:   service/strategies/__init__.py
+	modified:   service/strategies/baseStrategy.py
+	modified:   service/strategies/eye_and_earth_strategy.py
+	modified:   service/strategies/simpleDealStrategy.py
+	modified:   service/strategies/turtleTradingActStrategy.py
+	modified:   service/strategies/wbottomStrategy.py
+	modified:   test.py
+	modified:   test3.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+
+	crontab/mlruns/
+	modules/backtest/
+	modules/common/file.py
+	modules/contrib/data/weight.py
+	modules/contrib/eva/
+	modules/contrib/model/
+	modules/dataHandler/dataset/weight.py
+	modules/workflow/record_temp.py
+	test4.py
+

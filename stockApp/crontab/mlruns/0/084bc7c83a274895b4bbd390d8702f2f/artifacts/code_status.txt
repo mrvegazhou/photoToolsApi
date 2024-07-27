@@ -1,0 +1,36 @@
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes to be committed:
+  (use "git reset HEAD <file>..." to unstage)
+
+	deleted:    modules/dataHandler/dataHandlerLP.py
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git checkout -- <file>..." to discard changes in working directory)
+
+	modified:   crontab/_datas/store.h5
+	modified:   dao/dayTrading.py
+	modified:   modules/common/config.py
+	modified:   modules/dataHandler/base.py
+	modified:   modules/dataHandler/cache.py
+	modified:   modules/dataHandler/data.py
+	modified:   modules/dataHandler/dataset/__init__.py
+	modified:   modules/dataHandler/dataset/handler.py
+	modified:   modules/dataHandler/dataset/utils.py
+	modified:   modules/dataHandler/storage/file_storage.py
+	modified:   modules/workflow/__init__.py
+	modified:   modules/workflow/expm.py
+	modified:   service/dayTrading/dayTradingService.py
+	modified:   test.py
+	modified:   test3.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+
+	crontab/mlruns/
+	modules/contrib/data/weight.py
+	modules/contrib/model/
+	modules/dataHandler/dataset/weight.py
+

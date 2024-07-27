@@ -15,7 +15,6 @@ from typing import Union, Iterable
 from collections import OrderedDict
 
 from core.log.logger import get_module_logger
-from service.dayTrading.dayTradingService import DayTradingService
 from ..common import get_redis_connection, normalize_cache_fields, remove_fields_space, hash_args, \
     normalize_cache_instruments
 from ..common.config import C
@@ -808,64 +807,3 @@ class DiskDatasetCache(DatasetCache):
                 with meta_path.open("wb") as f:
                     pickle.dump(d, f, protocol=C.dump_protocol_version)
                 return 0
-
-
-class DataHDF5Cache(BaseProviderCache):
-    FEATURES_DIR_NAME = "features"
-    def __init__(self, provider: DayTradingService):
-        super(DataHDF5Cache, self).__init__(provider)
-        self.r = get_redis_connection()
-
-    def get_cache_dir(self, freq: str = None) -> Path:
-        return super(DataHDF5Cache, self).get_cache_dir(C.dataset_cache_dir_name, freq)
-
-    def read_data_from_cache(self, instrument, freq, start_time, end_time, field):
-        cache_path = self.get_cache_dir(freq).joinpath(self.FEATURES_DIR_NAME)
-        key = f"{instrument}"
-        start_time = pd.to_datetime(start_time)
-        end_time = pd.to_datetime(end_time)
-        if self.check_cache_exists(cache_path):
-            store = pd.HDFStore(cache_path, mode="r")
-            if "{}".format(key) in store.keys():
-                df = store[key]
-                # 判断日期范围是否在hdf5中被包含 日期是hdf5的第二个索引
-                date_index = df.index.get_level_values(1)
-                start_time_h5 = date_index.min()
-                end_time_h5 = date_index.max()
-                si = pd.to_datetime([start_time_h5, start_time]).max()
-                se = pd.to_datetime([end_time_h5, end_time]).min()
-                df = store.read(instrument, where=f"trade_date >= '{si}' and trade_date <= '{se}'", columns=[field])
-                store.close()
-                return df[field]
-            else:
-                self.gen_dataset_cache(cache_path, instrument, start_time, end_time, field, freq)
-        else:
-            # 没有缓存 创建缓存数据
-            self.gen_dataset_cache(cache_path, instrument, start_time, end_time, field, freq)
-
-    def gen_dataset_cache(self, instrument, start_time, end_time, field, freq):
-        cache_path = self.get_cache_dir(freq).joinpath(self.FEATURES_DIR_NAME)
-        self.logger.debug(f"Generating feature cache {cache_path}")
-        df = self.provider.get_feature_datas(instrument, start_time, end_time)
-        lock_name = f"{str(C.dpm.get_data_uri(freq))}:feature-{instrument}"
-        with CacheUtils.writer_lock(self.r, lock_name):
-            key = f"{instrument}"
-            store = pd.HDFStore(cache_path,  mode='a')
-            store.remove(key)
-            store.put(key, df, format='table', data_columns=True)
-            store.close()
-        return df[field]
-
-    def get_end_index(self, instrument, start_time, end_time, freq):
-        key = f"{instrument}"
-        cache_path = self.get_cache_dir(freq).joinpath('featrues')
-        with pd.HDFStore(cache_path, mode="r") as store:
-            if "{}".format(key) in store.keys():
-                df = store[key]
-            else:
-                df = self.provider.get_feature_datas(instrument, start_time, end_time)
-            return df.shape[0]
-        return 0
-
-    def get_start_index(self, instrument, start_time, end_time):
-        pass
