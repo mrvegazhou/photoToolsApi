@@ -17,7 +17,8 @@ if __name__ == '__main__':
 
     def get_stock_codes():
         east = EastMarketRealTime()
-        print(east.get_market_real_time('沪深A'))
+        df = east.get_market_real_time('all_stocks')
+        print(df.shape)
 
 
     def job_funcs():
@@ -26,7 +27,8 @@ if __name__ == '__main__':
 
 
     get_stock_codes()
-    pssss
+    
+    exit(1)
 
 
     executors = {
